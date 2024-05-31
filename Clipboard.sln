@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.34829.251
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Clipboard", "Clipboard\Clipboard.vcxproj", "{11D6AF61-7393-4918-85F4-D77ADB04739F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{11D6AF61-7393-4918-85F4-D77ADB04739F}.Debug|x64.ActiveCfg = Debug|x64
+		{11D6AF61-7393-4918-85F4-D77ADB04739F}.Debug|x64.Build.0 = Debug|x64
+		{11D6AF61-7393-4918-85F4-D77ADB04739F}.Release|x64.ActiveCfg = Release|x64
+		{11D6AF61-7393-4918-85F4-D77ADB04739F}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {ABA361FC-7F91-439C-BA76-5CEC2D63D3A6}
+	EndGlobalSection
+EndGlobal

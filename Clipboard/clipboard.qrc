@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Img/BillboardUp.png</file>
+        <file>Img/TextBillboardUp.png</file>
+    </qresource>
+</RCC>
