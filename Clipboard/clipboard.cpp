@@ -1,9 +1,10 @@
 ﻿#include "clipboard.h"
 
-HHOOK mouseHook;
 int Clipboard::mouseX = 0;
 int Clipboard::mouseY = 0;
 
+#ifdef Q_OS_WIN32
+HHOOK mouseHook;
 LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
 	if (nCode >= 0)
@@ -18,6 +19,7 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 	}
 	return CallNextHookEx(mouseHook, nCode, wParam, lParam);
 }
+#endif // Q_OS_WIN32
 
 Clipboard::Clipboard(QWidget *parent)
     : QMainWindow(parent)
@@ -179,7 +181,8 @@ void Clipboard::LoadSettings()
 	QFont textFont("SimSun", 13);
 	textFont.setWeight(QFont::DemiBold);
 	// 设置字体颜色
-	QPalette palette = ui->DoclistView->palette();
+	QPalette TextPalette = ui->textBrowser->palette();
+	QPalette DocPalette = ui->DoclistView->palette();
 	if (!settings.contains("CurrentBackgroundImgIndex")) {
 		settings.setValue("CurrentBackgroundImgIndex", 1);
 	}
@@ -205,14 +208,16 @@ void Clipboard::LoadSettings()
 		ui->ImgListWidget->setStyleSheet(QString("QWidget#ImgListWidget{border-image:url(:/Img/bgi%1.png);}").arg(CurrentBackgroundImgIndex));
 		ui->DoclistView->setStyleSheet(QString("QWidget#DoclistView{border-image:url(:/Img/bgi%1.png);}").arg(CurrentBackgroundImgIndex));
 	}
-	palette.setColor(QPalette::Text, CurrentTextColor);
-	
+	TextPalette.setColor(QPalette::Text, CurrentTextColor);
+	DocPalette.setColor(QPalette::Text, CurrentTextColor);
+
+	ui->DoclistView->setPalette(DocPalette);
 	ui->centralWidget->setStyleSheet("QWidget#centralWidget{border-image:url(:/Img/bgi1Border.png);}");
 	ui->textBrowser->setFont(textFont);
-	ui->textBrowser->setPalette(palette);
+	ui->textBrowser->setPalette(TextPalette);
 
 	ui->DoclistView->setFont(textFont);
-	ui->DoclistView->setPalette(palette);
+	ui->DoclistView->setPalette(DocPalette);
 
 	ui->HideButton->setStyleSheet(buttonStyleSheet);
 	ui->ESCButton->setStyleSheet(buttonStyleSheet);
@@ -225,8 +230,11 @@ void Clipboard::LoadSettings()
 // 开启鼠标钩子
 void Clipboard::startMouseHook()
 {
+#ifdef Q_OS_WIN32
 	mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, GetModuleHandle(NULL), 0);
 	if (mouseHook == NULL) QMessageBox::warning(nullptr, "error!", "Failed to install mouse hook", QMessageBox::Ok);
+#endif // Q_OS_WIN32
+
 }
 
 void Clipboard::onClipboardDataChanged()
@@ -337,13 +345,16 @@ void Clipboard::clickMoreButton()
 
 	/* 更改文本颜色 */
 	connect(ChangeTextColorAction, &QAction::triggered, this, [&]() {
-		QPalette palette = ui->textBrowser->palette();
-		QColor textColor = palette.color(QPalette::Text);
+		QPalette TextPalette = ui->textBrowser->palette();
+		QPalette DocPalette = ui->DoclistView->palette();
+		QColor textColor = TextPalette.color(QPalette::Text);
 
 		QColor color = QColorDialog::getColor(textColor, this, QString::fromLocal8Bit("选择一种文本颜色"));
 		if (color.isValid()) {
-			palette.setColor(QPalette::Text, color);
-			ui->textBrowser->setPalette(palette);
+			TextPalette.setColor(QPalette::Text, color);
+			DocPalette.setColor(QPalette::Text, color);
+			ui->textBrowser->setPalette(TextPalette);
+			ui->DoclistView->setPalette(DocPalette);
 			settings.setValue("CurrentTextColor", color);
 		}
 	});

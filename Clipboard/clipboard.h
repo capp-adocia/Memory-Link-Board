@@ -1,5 +1,15 @@
 ﻿#pragma once
 
+#include <qglobal.h>
+#ifdef Q_OS_LINUX
+	
+#elif defined(Q_OS_WIN32)
+	#include <windows.h>
+#else
+	#error "Unsupported platform"
+#endif
+
+
 #include <QtWidgets/QMainWindow>
 #include "ui_clipboard.h"
 #include <QClipboard>
@@ -8,7 +18,6 @@
 #include <QMouseEvent>
 #include <QTimer>
 #include <QMimeData>
-#include <windows.h>
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QScreen>
@@ -25,6 +34,7 @@
 #include <QColorDialog>
 #include <QFileDialog>
 #include <QSettings>
+
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class ClipboardClass; };
@@ -64,4 +74,6 @@ private:
 	QString handledText; // 处理好的文本
 };
 
-LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam);
+#ifdef Q_OS_WIN32
+	LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam);
+#endif // Q_OS_WIN32
