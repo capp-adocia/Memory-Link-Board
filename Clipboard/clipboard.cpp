@@ -1,9 +1,8 @@
-#include "clipboard.h"
+ï»¿#include "clipboard.h"
 
 HHOOK mouseHook;
 int Clipboard::mouseX = 0;
 int Clipboard::mouseY = 0;
-Clipboard *Clipboard::wid = nullptr;
 
 LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
@@ -23,35 +22,15 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 Clipboard::Clipboard(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::ClipboardClass())
+	, settings("config.ini", QSettings::IniFormat)
 {
     ui->setupUi(this);
-	wid = this;
-
 	setWindowFlags(Qt::Window | Qt::CustomizeWindowHint | Qt::WindowStaysOnTopHint);
-	/* ³õÊ¼»¯ÑùÊ½ */
-	QString buttonStyleSheet = "QPushButton{"
-		"color:white;"
-		"background-color: rgb(109, 109, 109);"
-		"border-left:4px solid rgb(184, 184, 185);"
-		"border-top:4px solid rgb(184, 184, 185);"
-		"border-right:4px solid rgb(88, 88, 88);"
-		"border-bottom:4px solid rgb(88, 88, 88);"
-		"}"
-		"QPushButton:hover{"
-		"color:white;"
-		"background-color: rgb(109, 109, 109);"
-		"border:5px solid rgb(224, 226, 224);"
-		"}";
-	ui->centralWidget->setStyleSheet("QWidget#centralWidget{border-image:url(:/Img/BillboardUp.png);}");
-	ui->textBrowser->setStyleSheet("QWidget#textBrowser{border-image:url(:/Img/TextBillboardUp.png);}");
-	ui->ImgListWidget->setStyleSheet("QWidget#ImgListWidget{border-image:url(:/Img/TextBillboardUp.png);}");
-	ui->DoclistView->setStyleSheet("QWidget#DoclistView{border-image:url(:/Img/TextBillboardUp.png);}");
-	
-	ui->HideButton->setStyleSheet(buttonStyleSheet);
-	ui->ESCButton->setStyleSheet(buttonStyleSheet);
-	ui->textBrowser->setOpenExternalLinks(true);
 
-	/* ´´½¨ÏµÍ³ÍĞÅÌ²Ëµ¥ */
+	/* åˆå§‹åŒ–é…ç½® */
+	LoadSettings();
+
+	/* åˆ›å»ºç³»ç»Ÿæ‰˜ç›˜èœå• */
 	QSystemTrayIcon *trayIcon = new QSystemTrayIcon(QIcon("C:\\Users\\26364\\Desktop\\MC_res\\health.png"),this);
 	QMenu *trayMenu = new QMenu(this);
 	QAction *exitAction = new QAction("Exit", this);
@@ -62,20 +41,20 @@ Clipboard::Clipboard(QWidget *parent)
 	trayIcon->show();
 
 	connect(trayIcon, &QSystemTrayIcon::activated, this, [=](QSystemTrayIcon::ActivationReason reason){
-		//µ¥»÷ÍĞÅÌÍ¼±ê
+		//å•å‡»æ‰˜ç›˜å›¾æ ‡
 		if (reason == QSystemTrayIcon::Trigger) isVisible() ? hide() : show();
 	});
 	connect(exitAction, &QAction::triggered, [&]() {
 		QApplication::exit();
 	});
 
-	/* »ñÈ¡Éè±¸ÆÁÄ»µÄ¿í¶È */
+	/* è·å–è®¾å¤‡å±å¹•çš„å®½åº¦ */
 	screenWidth = QGuiApplication::primaryScreen()->geometry().width();
 
-	/* Æô¶¯¹³×Ó */
+	/* å¯åŠ¨é’©å­ */
 	startMouseHook();
 	
-	/* ¼ôÇĞ°å */
+	/* å‰ªåˆ‡æ¿ */
 	clipboard = QApplication::clipboard();
 
 	ui->textBrowser->setText(clipboard->text());
@@ -91,20 +70,88 @@ Clipboard::Clipboard(QWidget *parent)
 	connect(ui->ESCButton, &QPushButton::clicked, this, [&] {
 		QApplication::exit();
 	});
+	/* ç‚¹å‡»æ›´å¤šæŒ‰é’® */
+	connect(ui->MoreButton, &QPushButton::clicked, this, &Clipboard::clickMoreButton);
 
-	/* ÉèÖÃÍ¼Æ¬Ïî */ 
+	/* æ–‡æœ¬åŒ¹é… */
+	connect(ui->SearchEdit, &QLineEdit::textChanged, this, [&] {
+		// æ¸…ç©ºä¹‹å‰æ ·å¼
+		ui->textBrowser->setHtml(handledText);
+		QTextDocument *doc = ui->textBrowser->document();
+		QTextCursor cursor = doc->find(ui->SearchEdit->text());
+
+		while (!cursor.isNull()) {
+			QTextCharFormat format;
+			format.setBackground(Qt::darkCyan);
+			cursor.mergeCharFormat(format);
+			cursor = doc->find(ui->SearchEdit->text(), cursor.position() + ui->SearchEdit->text().length());
+		}
+	});
+	connect(ui->SearchEdit, &QLineEdit::returnPressed, this, [&] {
+		QTextDocument *doc = ui->textBrowser->document();
+		QTextCursor cursor = doc->find(ui->SearchEdit->text(), ui->textBrowser->textCursor().position());
+		if (!cursor.isNull()) {
+			ui->textBrowser->setTextCursor(cursor);
+			ui->textBrowser->ensureCursorVisible();
+		}
+	});
+
+	/* è®¾ç½®å›¾ç‰‡é¡¹ */ 
 	ui->ImgListWidget->setViewMode(QListWidget::IconMode);
 	ui->ImgListWidget->setIconSize(QSize(300, 300));
 
-	/* ÉèÖÃÎÄ¼şÏî */
-	fileModel = new QFileSystemModel(this);
-	proxyModel = new QSortFilterProxyModel(this);
+	/* è®¾ç½®æ–‡ä»¶é¡¹ */
+	ui->DoclistView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+	ui->DoclistView->setSpacing(3);
+	ui->DoclistView->setContextMenuPolicy(Qt::CustomContextMenu);
+	ui->DoclistView->setUniformItemSizes(true);
 
-	// false --½öÏÔÊ¾·ûºÏÌõ¼şµÄÎÄ¼ş
-	fileModel->setNameFilterDisables(false);
-	proxyModel->setSourceModel(fileModel);
-	ui->DoclistView->setModel(proxyModel);
+	/* å·¦é”®ç‚¹å‡»æ–‡ä»¶é¡¹ï¼ˆæ‰“å¼€æ–‡ä»¶è·¯å¾„ï¼‰ */
+	connect(ui->DoclistView, &QListView::clicked, this, [=](const QModelIndex &index) {
+		QString itemPath = docNames.at(index.row());
 
+		QFileInfo info(itemPath);
+		if (info.isDir()) {
+			// ç‚¹å‡»é¡¹æ˜¯æ–‡ä»¶å¤¹
+			QDesktopServices::openUrl(QUrl::fromLocalFile(itemPath));
+		}
+		else {
+			// ç‚¹å‡»é¡¹æ˜¯æ–‡ä»¶
+			QString folderPath = info.dir().path();
+			QDesktopServices::openUrl(QUrl::fromLocalFile(folderPath));
+		}
+	});
+
+	/* å³é”®ç‚¹å‡»æ–‡ä»¶é¡¹ */
+	connect(ui->DoclistView, &QListView::customContextMenuRequested, this, [=](const QPoint &pos) {
+		QModelIndex index = ui->DoclistView->indexAt(pos);
+		if (index.isValid()) {
+			QMenu menu;
+			// æ·»åŠ èœå•é¡¹
+			QAction *openAction = menu.addAction(QString::fromLocal8Bit("æ‰“å¼€æ–‡ä»¶è·¯å¾„"));
+			QAction *startAction = menu.addAction(QString::fromLocal8Bit("å¯åŠ¨æ–‡ä»¶"));
+			QString itemPath = docNames.at(index.row());
+
+			/* æ‰“å¼€æ–‡ä»¶è·¯å¾„ */
+			connect(openAction, &QAction::triggered, this, [&]() {
+				QFileInfo info(itemPath);
+				if (info.isDir()) {
+					QDesktopServices::openUrl(QUrl::fromLocalFile(itemPath));
+				}
+				else {
+					QString folderPath = info.dir().path();
+					QDesktopServices::openUrl(QUrl::fromLocalFile(folderPath));
+				}
+			});
+
+			/* å¯åŠ¨æ–‡ä»¶ */
+			connect(startAction, &QAction::triggered, this, [&]() {
+				QDesktopServices::openUrl(QUrl::fromLocalFile(itemPath));
+			});
+			
+			menu.exec(ui->DoclistView->mapToGlobal(pos));
+		}
+	});
 
 }
 
@@ -113,131 +160,247 @@ Clipboard::~Clipboard()
     delete ui;
 }
 
-// ¿ªÆôÊó±ê¹³×Ó
+void Clipboard::LoadSettings()
+{
+	/* åˆå§‹åŒ–æ ·å¼ */
+	QString buttonStyleSheet = "QPushButton{"
+		"color:white;"
+		"background-color: rgb(109, 109, 109);"
+		"border-left:4px solid rgb(184, 184, 185);"
+		"border-top:4px solid rgb(184, 184, 185);"
+		"border-right:4px solid rgb(88, 88, 88);"
+		"border-bottom:4px solid rgb(88, 88, 88);"
+		"}"
+		"QPushButton:hover{"
+		"color:white;"
+		"background-color: rgb(109, 109, 109);"
+		"border:5px solid rgb(224, 226, 224);"
+		"}";
+	QFont textFont("SimSun", 13);
+	textFont.setWeight(QFont::DemiBold);
+	// è®¾ç½®å­—ä½“é¢œè‰²
+	QPalette palette = ui->DoclistView->palette();
+	if (!settings.contains("CurrentBackgroundImgIndex")) {
+		settings.setValue("CurrentBackgroundImgIndex", 1);
+	}
+	if (!settings.contains("CurrentBackgroundImgPath")) {
+		settings.setValue("CurrentBackgroundImgPath", "");
+	}
+	if (!settings.contains("CurrentTextColor")) {
+		settings.setValue("CurrentTextColor", "#87bbff");
+	}
+	int CurrentBackgroundImgIndex = settings.value("CurrentBackgroundImgIndex").toInt();
+	QString CurrentBackgroundImgPath = settings.value("CurrentBackgroundImgPath").toString();
+	QString CurrentTextColor = settings.value("CurrentTextColor").toString();
+	/* è‡ªå®šä¹‰å›¾ç‰‡ */
+	if (CurrentBackgroundImgIndex == 0)
+	{
+		ui->textBrowser->setStyleSheet(QString("QWidget#textBrowser{border-image:url(%1);}").arg(CurrentBackgroundImgPath));
+		ui->ImgListWidget->setStyleSheet(QString("QWidget#ImgListWidget{border-image:url(%1);}").arg(CurrentBackgroundImgPath));
+		ui->DoclistView->setStyleSheet(QString("QWidget#DoclistView{border-image:url(%1);}").arg(CurrentBackgroundImgPath));
+	}
+	else
+	{
+		ui->textBrowser->setStyleSheet(QString("QWidget#textBrowser{border-image:url(:/Img/bgi%1.png);}").arg(CurrentBackgroundImgIndex));
+		ui->ImgListWidget->setStyleSheet(QString("QWidget#ImgListWidget{border-image:url(:/Img/bgi%1.png);}").arg(CurrentBackgroundImgIndex));
+		ui->DoclistView->setStyleSheet(QString("QWidget#DoclistView{border-image:url(:/Img/bgi%1.png);}").arg(CurrentBackgroundImgIndex));
+	}
+	palette.setColor(QPalette::Text, CurrentTextColor);
+	
+	ui->centralWidget->setStyleSheet("QWidget#centralWidget{border-image:url(:/Img/bgi1Border.png);}");
+	ui->textBrowser->setFont(textFont);
+	ui->textBrowser->setPalette(palette);
+
+	ui->DoclistView->setFont(textFont);
+	ui->DoclistView->setPalette(palette);
+
+	ui->HideButton->setStyleSheet(buttonStyleSheet);
+	ui->ESCButton->setStyleSheet(buttonStyleSheet);
+	ui->MoreButton->setStyleSheet(buttonStyleSheet);
+	ui->textBrowser->setOpenExternalLinks(true);
+	ui->SearchEdit->setVisible(false);
+	ui->SearchEdit->setPlaceholderText(QString::fromLocal8Bit("è¯·è¾“å…¥éœ€è¦åŒ¹é…çš„æ–‡æœ¬ï¼Œ\"Ctrl + F\" å¯ä»¥å¼€å¯æˆ–å…³é—­æœç´¢æ "));
+}
+
+// å¼€å¯é¼ æ ‡é’©å­
 void Clipboard::startMouseHook()
 {
 	mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, GetModuleHandle(NULL), 0);
-	if (mouseHook == NULL) qDebug() << "Failed to install mouse hook";
-}
-
-// Í£Ö¹Êó±ê¹³×Ó
-void Clipboard::stopMouseHook()
-{
-	UnhookWindowsHookEx(mouseHook);
-	mouseHook = NULL;
+	if (mouseHook == NULL) QMessageBox::warning(nullptr, "error!", "Failed to install mouse hook", QMessageBox::Ok);
 }
 
 void Clipboard::onClipboardDataChanged()
 {
-	const QMimeData* mimeData = clipboard->mimeData();
-	if(Clipboard::mouseX - width() / 2 < 0) move(0, 30);
-	else if (Clipboard::mouseX - width() / 2 + width() > screenWidth) move(screenWidth - width(), 30);
-	else move(Clipboard::mouseX - width() / 2, 30);
-	show();
-	// Í¼Æ¬Çø or ÎÄ¼şÇø
-	if (mimeData->hasFormat("text/uri-list")) {
-		// Èç¹ûºó×º²»ÊÇÍ¼Æ¬ÀàĞÍµÄÄÇÃ´¾ÍÒÔÎÄ¼şÁĞ±íµÄĞÎÊ½Õ¹Ê¾³öÀ´
-
-		QStringList paths = mimeData->text().split("\n", Qt::SkipEmptyParts);
-		imgPaths.clear();
-		docNames.clear();
-		if (ui->ImgListWidget->count() > 0) qDeleteAll(ui->ImgListWidget->findItems(QString(), Qt::MatchContains));
-
-		QSet<QString> validSuffixes = { "jpg", "jpeg", "png", "bmp" ,"webp","svg"};
-		bool IsAllImg = true; // ÊÇ·ñÈ«ÊÇÍ¼Æ¬
-		for(const QString& path : paths) {
-			QUrl url(QUrl::fromUserInput(path));
-			QString localFilePath = url.toLocalFile();
-			QFile file(localFilePath);
-			imgPaths.append(localFilePath);
-			// »ñÈ¡ÎÄ¼şºó×º
-			QFileInfo fileInfo(localFilePath);
-			QString fileSuffix = fileInfo.suffix();
-
-			if (!validSuffixes.contains(fileSuffix) && IsAllImg)
-			{
-				IsAllImg = false;
-			}
-		}
-		// ²¿·Ö»òÈ«²¿¶¼²»ÊÇÍ¼Æ¬µÄ
-		QStringList DocPaths = imgPaths;
-		docNames.clear();
-		if (!IsAllImg)
-		{
-			ui->stackedWidget_2->setCurrentWidget(ui->DocumentPage);
-
-			for (const QString& DocPath : DocPaths)
-			{
-				QFileInfo fileInfo(DocPath);
-				QString fileName = fileInfo.fileName();
-				docNames.append(fileName);
-			}
-			fileModel->setNameFilters(QStringList() << docNames);
-			QFileInfo fileInfo(DocPaths.at(0));
-			QString directoryPath = fileInfo.path();
-			fileModel->setRootPath(directoryPath);
-			ui->DoclistView->setRootIndex(proxyModel->mapFromSource(fileModel->index(directoryPath)));
-
-			return;
-		}
-		// È«ÎªÍ¼Æ¬
-		ui->stackedWidget_2->setCurrentWidget(ui->ImagePage);
-		for (const QString& imgPath : imgPaths) {
-			QListWidgetItem *item = new QListWidgetItem(ui->ImgListWidget);
-			QPixmap pixmap(imgPath);
-			item->setIcon(QIcon(pixmap));
-			ui->ImgListWidget->addItem(item);
-		}
-
-	}
-	// ÎÄ×ÖÇø
-	else if (mimeData->hasText() && !mimeData->hasFormat("text/uri-list"))
+	if (!ui->textBrowser->hasFocus()) /* åªæœ‰å½“ç„¦ç‚¹åœ¨å¤–éƒ¨æ—¶æ‰è§¦å‘ */
 	{
-		ui->stackedWidget_2->setCurrentWidget(ui->TextPage);
-		QRegularExpression urlRegex("(https?|ftp)://([A-Za-z0-9.-]+)(/[^\\s]*)?");
-		QRegularExpression emailRegex("\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b");
+		const QMimeData* mimeData = clipboard->mimeData();
+		if (Clipboard::mouseX - width() / 2 < 0) move(0, 30);
+		else if (Clipboard::mouseX - width() / 2 + width() > screenWidth) move(screenWidth - width(), 30);
+		else move(Clipboard::mouseX - width() / 2, 30);
+		show();
+		// å›¾ç‰‡åŒº or æ–‡ä»¶åŒº
+		if (mimeData->hasFormat("text/uri-list")) {
+			// å¦‚æœåç¼€ä¸æ˜¯å›¾ç‰‡ç±»å‹çš„é‚£ä¹ˆå°±ä»¥æ–‡ä»¶åˆ—è¡¨çš„å½¢å¼å±•ç¤ºå‡ºæ¥
 
-		QString htmlContent = mimeData->text();
+			QStringList paths = mimeData->text().split("\n", Qt::SkipEmptyParts);
+			imgPaths.clear();
+			if (ui->ImgListWidget->count() > 0) qDeleteAll(ui->ImgListWidget->findItems(QString(), Qt::MatchContains));
 
-		/* URLs */
-		QRegularExpressionMatchIterator urlMatchIterator = urlRegex.globalMatch(htmlContent);
-		while (urlMatchIterator.hasNext()) {
-			QRegularExpressionMatch match = urlMatchIterator.next();
-			QString url = match.captured();
-			QString link = QString("<a href='%1'>%1</a>").arg(url);
-			htmlContent.replace(url, link);
+			QSet<QString> validSuffixes = { "jpg", "jpeg", "png", "bmp" ,"webp","svg" };
+			bool IsAllImg = true; // æ˜¯å¦å…¨æ˜¯å›¾ç‰‡
+			for (const QString& path : paths) {
+				QUrl url(QUrl::fromUserInput(path));
+				QString localFilePath = url.toLocalFile();
+				QFile file(localFilePath);
+				imgPaths.append(localFilePath);
+				// è·å–æ–‡ä»¶åç¼€
+				QFileInfo fileInfo(localFilePath);
+				QString fileSuffix = fileInfo.suffix();
+
+				if (!validSuffixes.contains(fileSuffix) && IsAllImg)
+				{
+					IsAllImg = false;
+				}
+			}
+			// éƒ¨åˆ†æˆ–å…¨éƒ¨éƒ½ä¸æ˜¯å›¾ç‰‡çš„
+			QStringList DocPaths = imgPaths;
+			docNames.clear();
+			if (!IsAllImg)
+			{
+				ui->stackedWidget_2->setCurrentWidget(ui->DocumentPage);
+
+				for (const QString& DocPath : DocPaths) docNames.append(DocPath);
+
+				ui->DoclistView->setModel(new QStringListModel(docNames, this));
+				return;
+			}
+			// å…¨ä¸ºå›¾ç‰‡
+			ui->stackedWidget_2->setCurrentWidget(ui->ImagePage);
+			for (const QString& imgPath : imgPaths) {
+				QListWidgetItem *item = new QListWidgetItem(ui->ImgListWidget);
+				QPixmap pixmap(imgPath);
+				item->setIcon(QIcon(pixmap));
+				ui->ImgListWidget->addItem(item);
+			}
+
 		}
+		// æ–‡å­—åŒº
+		else if (mimeData->hasText() && !mimeData->hasFormat("text/uri-list"))
+		{
+			ui->stackedWidget_2->setCurrentWidget(ui->TextPage);
+			QRegularExpression urlRegex("(https?|ftp)://([A-Za-z0-9.-]+)(/[^\\s]*)?");
+			QRegularExpression emailRegex("\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b");
+			//QRegularExpression englishWordPattern("\\b[A-Za-z]+\\b");
 
-		/* Emails */
-		QRegularExpressionMatchIterator emailMatchIterator = emailRegex.globalMatch(htmlContent);
-		while (emailMatchIterator.hasNext()) {
-			QRegularExpressionMatch match = emailMatchIterator.next();
-			QString email = match.captured();
-			QString emailLink = QString("<a href='mailto:%1'>%1</a>").arg(email);
-			htmlContent.replace(email, emailLink);
+			QString mimeText = (mimeData->*(&QMimeData::text))();
+
+			/* URLs */
+			QRegularExpressionMatchIterator urlMatchIterator = urlRegex.globalMatch(mimeText);
+			while (urlMatchIterator.hasNext()) {
+				QRegularExpressionMatch match = urlMatchIterator.next();
+				QString url = match.captured();
+				QString link = QString("<a href='%1'>%1</a>").arg(url);
+				mimeText.replace(url, link);
+			}
+
+			/* Emails */
+			QRegularExpressionMatchIterator emailMatchIterator = emailRegex.globalMatch(mimeText);
+			while (emailMatchIterator.hasNext()) {
+				QRegularExpressionMatch match = emailMatchIterator.next();
+				QString email = match.captured();
+				QString emailLink = QString("<a href='mailto:%1'>%1</a>").arg(email);
+				mimeText.replace(email, emailLink);
+			}
+
+			handledText = "<html><pre>" + mimeText + "</pre></html>";
+			ui->textBrowser->setHtml(handledText);
+
 		}
-		ui->textBrowser->setHtml(htmlContent);
-		
-		
-		// ±éÀú¸ñÊ½²¢´òÓ¡Êı¾İ
-		//for (const QString& format : mimeData->formats()) {
-		//	qDebug() << "Format:" << format;
-
-		//	// ´òÓ¡Ã¿ÖÖ¸ñÊ½¶ÔÓ¦µÄÊı¾İ
-		//	if (mimeData->hasFormat(format)) {
-		//		const QByteArray data = mimeData->data(format);
-		//		qDebug() << "Data:" << data;
-		//	}
-		//}
 	}
-	
 
 }
+
+void Clipboard::clickMoreButton()
+{
+	QMenu menu;
+	// æ·»åŠ èœå•é¡¹
+	QAction *HelpAction = menu.addAction(QString::fromLocal8Bit("å¸®åŠ©"));
+	QAction *ChangeTextColorAction = menu.addAction(QString::fromLocal8Bit("æ›´æ”¹æ–‡æœ¬é¢œè‰²"));
+	QAction *ChangeBackgroundImageAction = menu.addAction(QString::fromLocal8Bit("æ›´æ”¹èƒŒæ™¯å›¾ç‰‡"));
+
+
+	/* å¸®åŠ© */
+	connect(HelpAction, &QAction::triggered, this, [&]() {
+		// åŠŸèƒ½æš‚å®š
+		QMessageBox::warning(nullptr, QString::fromLocal8Bit("æç¤º"), QString::fromLocal8Bit("é€šè¿‡Ctrl+Få¯ä»¥å¯åŠ¨æ–‡æœ¬åŒ¹é…åŠŸèƒ½"), QMessageBox::Ok);
+	});
+
+	/* æ›´æ”¹æ–‡æœ¬é¢œè‰² */
+	connect(ChangeTextColorAction, &QAction::triggered, this, [&]() {
+		QPalette palette = ui->textBrowser->palette();
+		QColor textColor = palette.color(QPalette::Text);
+
+		QColor color = QColorDialog::getColor(textColor, this, QString::fromLocal8Bit("é€‰æ‹©ä¸€ç§æ–‡æœ¬é¢œè‰²"));
+		if (color.isValid()) {
+			palette.setColor(QPalette::Text, color);
+			ui->textBrowser->setPalette(palette);
+			settings.setValue("CurrentTextColor", color);
+		}
+	});
+
+	/* æ›´æ”¹èƒŒæ™¯å›¾ç‰‡ */
+	connect(ChangeBackgroundImageAction, &QAction::triggered, this, [&]() {
+		QMenu backgroundImgMenu;
+		QAction *BackgroundImg1Action = backgroundImgMenu.addAction(QString::fromLocal8Bit("èƒŒæ™¯1"));
+		QAction *BackgroundImg2Action = backgroundImgMenu.addAction(QString::fromLocal8Bit("èƒŒæ™¯2"));
+		QAction *customizeAction = backgroundImgMenu.addAction(QString::fromLocal8Bit("è‡ªå®šä¹‰"));
+		BackgroundImg1Action->setCheckable(true);
+		BackgroundImg2Action->setCheckable(false);
+		customizeAction->setCheckable(false);
+		/* èƒŒæ™¯1 */
+		connect(BackgroundImg1Action, &QAction::triggered, this, [&]() {
+			ui->textBrowser->setStyleSheet("QWidget#textBrowser{border-image:url(:/Img/bgi1.png);}");
+			ui->ImgListWidget->setStyleSheet("QWidget#ImgListWidget{border-image:url(:/Img/bgi1.png);}");
+			ui->DoclistView->setStyleSheet("QWidget#DoclistView{border-image:url(:/Img/bgi1.png);}");
+
+			settings.setValue("CurrentBackgroundImgIndex", 1);
+
+		});
+		/* èƒŒæ™¯2 */
+		connect(BackgroundImg2Action, &QAction::triggered, this, [&]() {
+			ui->textBrowser->setStyleSheet("QWidget#textBrowser{border-image:url(:/Img/bgi2.png);}");
+			ui->ImgListWidget->setStyleSheet("QWidget#ImgListWidget{border-image:url(:/Img/bgi2.png);}");
+			ui->DoclistView->setStyleSheet("QWidget#DoclistView{border-image:url(:/Img/bgi2.png);}");
+
+			settings.setValue("CurrentBackgroundImgIndex", 2);
+		});
+		/* è‡ªå®šä¹‰ */
+		connect(customizeAction, &QAction::triggered, this, [&]() {
+			QString imagePath = QFileDialog::getOpenFileName(this, QString::fromLocal8Bit("é€‰æ‹©ä½ çš„èƒŒæ™¯å›¾ç‰‡"), QDir::homePath(), "Images (*.png *.jpg)");
+			if (!imagePath.isEmpty()) {
+				QString textBrowserWidgetStyleSheet = "QWidget#textBrowser{border-image:url(" + imagePath + ");}";
+				QString ImgListWidgetStyleSheet = "QWidget#textBrowser{border-image:url(" + imagePath + ");}";
+				QString DoclistViewStyleSheet = "QWidget#textBrowser{border-image:url(" + imagePath + ");}";
+				ui->textBrowser->setStyleSheet(textBrowserWidgetStyleSheet);
+				ui->ImgListWidget->setStyleSheet(ImgListWidgetStyleSheet);
+				ui->DoclistView->setStyleSheet(DoclistViewStyleSheet);
+
+				settings.setValue("CurrentBackgroundImgIndex", 0);
+				settings.setValue("CurrentBackgroundImgPath", imagePath);
+			}
+		});
+
+		backgroundImgMenu.exec(menu.mapToGlobal(QPoint(0, 0)));
+	});
+
+	menu.exec(ui->MoreButton->mapToGlobal(QPoint(0, ui->MoreButton->height())));
+}
+
 
 void Clipboard::mousePressEvent(QMouseEvent *event)
 {
 	if (event->button() == Qt::LeftButton) {
-		/* Êó±êÈ«¾Ö×ø±ê¼õ´°¿ÚµÄ×ø±ê */
+		/* é¼ æ ‡å…¨å±€åæ ‡å‡çª—å£çš„åæ ‡ */
 		lastPos = event->globalPos() - frameGeometry().topLeft();
 	}
 }
@@ -249,12 +412,33 @@ void Clipboard::mouseMoveEvent(QMouseEvent *event)
 	}
 }
 
-/* »ñÈ¡¹öÂÖ¹ö¶¯Öµ */ 
-void Clipboard::wheelEvent(QWheelEvent* event) {
+/* è·å–æ»šè½®æ»šåŠ¨å€¼ */ 
+void Clipboard::wheelEvent(QWheelEvent* event)
+{
 	int delta = event->angleDelta().y();
-	// µ÷½ÚÍ¼Æ¬ÏîµÄ´óĞ¡
+	// è°ƒèŠ‚å›¾ç‰‡é¡¹çš„å¤§å°
 	if (delta > 0) ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() + QSize(20,20));
 	else ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() - QSize(20, 20));
 
 	event->accept();
+}
+
+void Clipboard::keyPressEvent(QKeyEvent *event)
+{
+	if (event->modifiers() == Qt::ControlModifier &&
+		event->key() == Qt::Key_F &&
+		(ui->stackedWidget_2->currentWidget() == ui->TextPage)) 
+	{
+		/* åˆ‡æ¢æ˜¾ç¤ºæœç´¢æ  */
+		if (ui->SearchEdit->isVisible())
+		{
+			ui->SearchEdit->setVisible(false);
+			ui->textBrowser->setFocus();
+			return;
+		}
+		ui->SearchEdit->setVisible(true);
+		ui->SearchEdit->setFocus();
+		return;
+	}
+	QWidget::keyPressEvent(event);
 }

@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
-        <file>Img/BillboardUp.png</file>
-        <file>Img/TextBillboardUp.png</file>
+        <file>Img/bgi1.png</file>
+        <file>Img/bgi1Border.png</file>
+        <file>Img/bgi2.png</file>
     </qresource>
 </RCC>

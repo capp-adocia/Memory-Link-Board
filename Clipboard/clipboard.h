@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <QtWidgets/QMainWindow>
 #include "ui_clipboard.h"
@@ -15,11 +15,16 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QLabel>
-#include <QStandardItem>
 #include <QListWidgetItem>
+#include <QDir>
 #include <QFileInfo>
-#include <QFileSystemModel>
-#include <QSortFilterProxyModel>
+#include <QStringListModel>
+#include <QDesktopServices>
+#include <QLineEdit>
+#include <QMessageBox>
+#include <QColorDialog>
+#include <QFileDialog>
+#include <QSettings>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class ClipboardClass; };
@@ -31,31 +36,32 @@ class Clipboard : public QMainWindow
 public:
     Clipboard(QWidget *parent = nullptr);
     ~Clipboard();
-	void startMouseHook();
-	void stopMouseHook();
-	static int mouseX; // Êó±êÎ»ÖÃx
-	static int mouseY; // Êó±êÎ»ÖÃy
-	static Clipboard *wid; //¶¨ÒåÒ»¸ö¾²Ì¬µÄClipboardÀà¶ÔÏó
+	void LoadSettings();
+    void startMouseHook();
+    static int mouseX; // é¼ æ ‡Xåæ ‡
+    static int mouseY; // é¼ æ ‡Yåæ ‡
 
 protected:
-	void mousePressEvent(QMouseEvent *event) override;
-	void mouseMoveEvent(QMouseEvent *event) override;
-	void wheelEvent(QWheelEvent* event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent* event) override;
+	void keyPressEvent(QKeyEvent *event) override;
 
 signals:
 
 public slots:
-	void onClipboardDataChanged();
+    void onClipboardDataChanged();
+	void clickMoreButton(); // æ˜¾ç¤ºèœå•æ 
 
-private:   
-	Ui::ClipboardClass *ui;
-	QClipboard *clipboard;
-	QPoint lastPos;
+private:
+    Ui::ClipboardClass *ui;
+	QSettings settings;
+    QClipboard *clipboard;
+    QPoint lastPos;
 	int screenWidth;
-	QStringList imgPaths;
-	QStringList docNames;
-	QFileSystemModel *fileModel;
-	QSortFilterProxyModel *proxyModel;
+    QStringList imgPaths;
+    QStringList docNames;
+	QString handledText; // å¤„ç†å¥½çš„æ–‡æœ¬
 };
 
 LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam);

@@ -1,4 +1,4 @@
-#include "clipboard.h"
+﻿#include "clipboard.h"
 #include <QtWidgets/QApplication>
 
 int main(int argc, char *argv[])
