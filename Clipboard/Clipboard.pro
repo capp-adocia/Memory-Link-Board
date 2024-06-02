@@ -5,7 +5,7 @@
 TEMPLATE = app
 TARGET = Clipboard
 DESTDIR = ../x64/Debug
-CONFIG += debug console
+CONFIG += debug
 LIBS += -L"."
 DEPENDPATH += .
 MOC_DIR += .

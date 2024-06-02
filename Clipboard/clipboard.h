@@ -34,7 +34,7 @@
 #include <QColorDialog>
 #include <QFileDialog>
 #include <QSettings>
-
+#include <QPushButton>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class ClipboardClass; };
@@ -56,7 +56,6 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent* event) override;
 	void keyPressEvent(QKeyEvent *event) override;
-
 signals:
 
 public slots:
@@ -67,11 +66,14 @@ private:
     Ui::ClipboardClass *ui;
 	QSettings settings;
     QClipboard *clipboard;
-    QPoint lastPos;
+	QPoint lastPos;
 	int screenWidth;
     QStringList imgPaths;
     QStringList docNames;
 	QString handledText; // 处理好的文本
+	QPushButton* ESCButton;
+	QPushButton* HideButton;
+	QPushButton* MoreButton;
 };
 
 #ifdef Q_OS_WIN32

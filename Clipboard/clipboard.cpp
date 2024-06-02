@@ -24,16 +24,24 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 Clipboard::Clipboard(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::ClipboardClass())
+	, lastPos(0,0)
 	, settings("config.ini", QSettings::IniFormat)
+	, ESCButton(new QPushButton(ui->toolBar))
+	, HideButton(new QPushButton(ui->toolBar))
+	, MoreButton(new QPushButton(ui->toolBar))
 {
     ui->setupUi(this);
-	setWindowFlags(Qt::Window | Qt::CustomizeWindowHint | Qt::WindowStaysOnTopHint);
+	setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+	// 设置标题栏高度为30像素
+
 
 	/* 初始化配置 */
 	LoadSettings();
 
-	/* 创建系统托盘菜单 */
-	QSystemTrayIcon *trayIcon = new QSystemTrayIcon(QIcon("C:\\Users\\26364\\Desktop\\MC_res\\health.png"),this);
+#ifdef Q_OS_WIN32
+
+	/* 创建系统托盘菜单（仅WIN32） */
+	QSystemTrayIcon *trayIcon = new QSystemTrayIcon(QIcon(":/Img/health.png"),this);
 	QMenu *trayMenu = new QMenu(this);
 	QAction *exitAction = new QAction("Exit", this);
 	trayMenu->addSeparator();
@@ -49,6 +57,8 @@ Clipboard::Clipboard(QWidget *parent)
 	connect(exitAction, &QAction::triggered, [&]() {
 		QApplication::exit();
 	});
+
+#endif // Q_OS_WIN32
 
 	/* 获取设备屏幕的宽度 */
 	screenWidth = QGuiApplication::primaryScreen()->geometry().width();
@@ -66,14 +76,14 @@ Clipboard::Clipboard(QWidget *parent)
 	});
 
 	connect(clipboard, &QClipboard::dataChanged, this, &Clipboard::onClipboardDataChanged);
-	connect(ui->HideButton, &QPushButton::clicked, this, [&] {
-		hide();
-	});
-	connect(ui->ESCButton, &QPushButton::clicked, this, [&] {
+	connect(ESCButton, &QPushButton::clicked, this, [&] {
 		QApplication::exit();
 	});
+	connect(HideButton, &QPushButton::clicked, this, [&] {
+		hide();
+	});
 	/* 点击更多按钮 */
-	connect(ui->MoreButton, &QPushButton::clicked, this, &Clipboard::clickMoreButton);
+	connect(MoreButton, &QPushButton::clicked, this, &Clipboard::clickMoreButton);
 
 	/* 文本匹配 */
 	connect(ui->SearchEdit, &QLineEdit::textChanged, this, [&] {
@@ -164,6 +174,22 @@ Clipboard::~Clipboard()
 
 void Clipboard::LoadSettings()
 {
+	QFont textFont("SimSun", 13);
+	textFont.setWeight(QFont::DemiBold);
+
+	ui->toolBar->addWidget(ESCButton);
+	ui->toolBar->addWidget(HideButton);
+	ui->toolBar->addWidget(MoreButton);
+	ui->statusBar->setFixedHeight(12);
+
+	ui->toolBar->setFont(textFont);
+
+	ESCButton->setFixedSize(30,30);
+	ESCButton->setText("X");
+	HideButton->setFixedSize(30, 30);
+	HideButton->setText("-");
+	MoreButton->setFixedSize(30, 30);
+	MoreButton->setText("?");
 	/* 初始化样式 */
 	QString buttonStyleSheet = "QPushButton{"
 		"color:white;"
@@ -178,8 +204,6 @@ void Clipboard::LoadSettings()
 		"background-color: rgb(109, 109, 109);"
 		"border:5px solid rgb(224, 226, 224);"
 		"}";
-	QFont textFont("SimSun", 13);
-	textFont.setWeight(QFont::DemiBold);
 	// 设置字体颜色
 	QPalette TextPalette = ui->textBrowser->palette();
 	QPalette DocPalette = ui->DoclistView->palette();
@@ -190,7 +214,7 @@ void Clipboard::LoadSettings()
 		settings.setValue("CurrentBackgroundImgPath", "");
 	}
 	if (!settings.contains("CurrentTextColor")) {
-		settings.setValue("CurrentTextColor", "#87bbff");
+		settings.setValue("CurrentTextColor", "#d0d0d0");
 	}
 	int CurrentBackgroundImgIndex = settings.value("CurrentBackgroundImgIndex").toInt();
 	QString CurrentBackgroundImgPath = settings.value("CurrentBackgroundImgPath").toString();
@@ -213,15 +237,18 @@ void Clipboard::LoadSettings()
 
 	ui->DoclistView->setPalette(DocPalette);
 	ui->centralWidget->setStyleSheet("QWidget#centralWidget{border-image:url(:/Img/bgi1Border.png);}");
+	ui->statusBar->setStyleSheet(("QWidget#statusBar{background-image:url(:/Img/bgi1Border.png);}"));
+	ui->toolBar->setStyleSheet(("QWidget#toolBar{background-image:url(:/Img/bgi1Border.png);}"));
 	ui->textBrowser->setFont(textFont);
 	ui->textBrowser->setPalette(TextPalette);
+	ui->textBrowser->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
 
 	ui->DoclistView->setFont(textFont);
 	ui->DoclistView->setPalette(DocPalette);
 
-	ui->HideButton->setStyleSheet(buttonStyleSheet);
-	ui->ESCButton->setStyleSheet(buttonStyleSheet);
-	ui->MoreButton->setStyleSheet(buttonStyleSheet);
+	HideButton->setStyleSheet(buttonStyleSheet);
+	ESCButton->setStyleSheet(buttonStyleSheet);
+	MoreButton->setStyleSheet(buttonStyleSheet);
 	ui->textBrowser->setOpenExternalLinks(true);
 	ui->SearchEdit->setVisible(false);
 	ui->SearchEdit->setPlaceholderText(QString::fromLocal8Bit("请输入需要匹配的文本，\"Ctrl + F\" 可以开启或关闭搜索栏"));
@@ -340,7 +367,7 @@ void Clipboard::clickMoreButton()
 	/* 帮助 */
 	connect(HelpAction, &QAction::triggered, this, [&]() {
 		// 功能暂定
-		QMessageBox::warning(nullptr, QString::fromLocal8Bit("提示"), QString::fromLocal8Bit("通过Ctrl+F可以启动文本匹配功能"), QMessageBox::Ok);
+		QMessageBox::warning(QApplication::activeWindow(), QString::fromLocal8Bit("提示"), QString::fromLocal8Bit("通过Ctrl+F可以启动文本匹配功能"), QMessageBox::Ok);
 	});
 
 	/* 更改文本颜色 */
@@ -404,7 +431,7 @@ void Clipboard::clickMoreButton()
 		backgroundImgMenu.exec(menu.mapToGlobal(QPoint(0, 0)));
 	});
 
-	menu.exec(ui->MoreButton->mapToGlobal(QPoint(0, ui->MoreButton->height())));
+	menu.exec(MoreButton->mapToGlobal(QPoint(0, MoreButton->height())));
 }
 
 
