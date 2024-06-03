@@ -35,6 +35,8 @@
 #include <QFileDialog>
 #include <QSettings>
 #include <QPushButton>
+#include <QTextStream>
+#include <QDateTime>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class ClipboardClass; };
@@ -47,9 +49,17 @@ public:
     Clipboard(QWidget *parent = nullptr);
     ~Clipboard();
 	void LoadSettings();
-    void startMouseHook();
+    void startHook();
+	static Clipboard* staticThis;
     static int mouseX; // 鼠标X坐标
     static int mouseY; // 鼠标Y坐标
+	enum ContentType
+	{
+		TEXT, // 文本
+		IMG, // 图片
+		DOC, // 文件及文件夹
+	};
+	void SaveHistory(ContentType contentType, const QStringList& contents);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -61,6 +71,8 @@ signals:
 public slots:
     void onClipboardDataChanged();
 	void clickMoreButton(); // 显示菜单栏
+	void Turn2PreHistory(); // 跳转上次记录
+	void Turn2NextHistory(); // 跳转到下次记录
 
 private:
     Ui::ClipboardClass *ui;
@@ -68,14 +80,12 @@ private:
     QClipboard *clipboard;
 	QPoint lastPos;
 	int screenWidth;
-    QStringList imgPaths;
-    QStringList docNames;
+    QStringList ImgPaths;
+    QStringList DocPaths;
 	QString handledText; // 处理好的文本
 	QPushButton* ESCButton;
 	QPushButton* HideButton;
 	QPushButton* MoreButton;
+	QPushButton* PreButton;
+	QPushButton* NextButton;
 };
-
-#ifdef Q_OS_WIN32
-	LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam);
-#endif // Q_OS_WIN32

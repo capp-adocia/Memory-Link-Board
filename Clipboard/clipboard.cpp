@@ -2,10 +2,14 @@
 
 int Clipboard::mouseX = 0;
 int Clipboard::mouseY = 0;
+Clipboard* Clipboard::staticThis = nullptr;
 
 #ifdef Q_OS_WIN32
-HHOOK mouseHook;
-LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
+HHOOK mouseHook = NULL;
+HHOOK keyboardHook = NULL;
+
+
+LRESULT CALLBACK MouseEvent(int nCode, WPARAM wParam, LPARAM lParam)
 {
 	if (nCode >= 0)
 	{
@@ -19,6 +23,33 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 	}
 	return CallNextHookEx(mouseHook, nCode, wParam, lParam);
 }
+
+LRESULT CALLBACK KeyEvent(int nCode, WPARAM wParam, LPARAM lParam)
+{
+	if (nCode >= 0 && wParam == WM_KEYDOWN)
+	{
+		KBDLLHOOKSTRUCT* pKeyboardStruct = (KBDLLHOOKSTRUCT*)lParam;
+		/* Ctrl + Shift + V || Ctrl + V */
+		if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && (GetAsyncKeyState(VK_SHIFT) & 0x8000) && (pKeyboardStruct->vkCode == 'V') || 
+			(GetAsyncKeyState(VK_CONTROL) & 0x8000) && (pKeyboardStruct->vkCode == 'V'))
+		{
+			Clipboard::staticThis->setVisible(false);
+		}
+		/* Ctrl + Z */
+		if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && (pKeyboardStruct->vkCode == 'Z'))
+		{
+			// 撤回 ,当点击撤回键时，显示上一次复制的内容
+
+		}
+		/* Ctrl + Y */
+		if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && (pKeyboardStruct->vkCode == 'Y'))
+		{
+			// 恢复
+		}
+	}
+	return CallNextHookEx(keyboardHook, nCode, wParam, lParam);
+}
+
 #endif // Q_OS_WIN32
 
 Clipboard::Clipboard(QWidget *parent)
@@ -29,12 +60,12 @@ Clipboard::Clipboard(QWidget *parent)
 	, ESCButton(new QPushButton(ui->toolBar))
 	, HideButton(new QPushButton(ui->toolBar))
 	, MoreButton(new QPushButton(ui->toolBar))
+	, PreButton(new QPushButton(ui->toolBar))
+	, NextButton(new QPushButton(ui->toolBar))
 {
     ui->setupUi(this);
 	setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
-	// 设置标题栏高度为30像素
-
-
+	staticThis = this;
 	/* 初始化配置 */
 	LoadSettings();
 
@@ -64,7 +95,7 @@ Clipboard::Clipboard(QWidget *parent)
 	screenWidth = QGuiApplication::primaryScreen()->geometry().width();
 
 	/* 启动钩子 */
-	startMouseHook();
+	startHook();
 	
 	/* 剪切板 */
 	clipboard = QApplication::clipboard();
@@ -72,18 +103,25 @@ Clipboard::Clipboard(QWidget *parent)
 	ui->textBrowser->setText(clipboard->text());
 
 	QTimer::singleShot(0, this, [&] {
-		hide();
+		setVisible(false);
 	});
-
+	
 	connect(clipboard, &QClipboard::dataChanged, this, &Clipboard::onClipboardDataChanged);
+
 	connect(ESCButton, &QPushButton::clicked, this, [&] {
 		QApplication::exit();
 	});
 	connect(HideButton, &QPushButton::clicked, this, [&] {
-		hide();
+		setVisible(false);
 	});
 	/* 点击更多按钮 */
 	connect(MoreButton, &QPushButton::clicked, this, &Clipboard::clickMoreButton);
+
+	/* 点击上一个记录按钮 */
+	connect(PreButton, &QPushButton::clicked, this, &Clipboard::Turn2PreHistory);
+
+	/* 点击下一个记录按钮 */
+	connect(NextButton, &QPushButton::clicked, this, &Clipboard::Turn2NextHistory);
 
 	/* 文本匹配 */
 	connect(ui->SearchEdit, &QLineEdit::textChanged, this, [&] {
@@ -120,8 +158,8 @@ Clipboard::Clipboard(QWidget *parent)
 
 	/* 左键点击文件项（打开文件路径） */
 	connect(ui->DoclistView, &QListView::clicked, this, [=](const QModelIndex &index) {
-		QString itemPath = docNames.at(index.row());
-
+		if (index.row() == 0) return; // 跳过第一项
+		QString itemPath = DocPaths.at(index.row());
 		QFileInfo info(itemPath);
 		if (info.isDir()) {
 			// 点击项是文件夹
@@ -137,12 +175,13 @@ Clipboard::Clipboard(QWidget *parent)
 	/* 右键点击文件项 */
 	connect(ui->DoclistView, &QListView::customContextMenuRequested, this, [=](const QPoint &pos) {
 		QModelIndex index = ui->DoclistView->indexAt(pos);
+		if (index.row() == 0) return; // 跳过第一项
 		if (index.isValid()) {
 			QMenu menu;
 			// 添加菜单项
 			QAction *openAction = menu.addAction(QString::fromLocal8Bit("打开文件路径"));
 			QAction *startAction = menu.addAction(QString::fromLocal8Bit("启动文件"));
-			QString itemPath = docNames.at(index.row());
+			QString itemPath = DocPaths.at(index.row());
 
 			/* 打开文件路径 */
 			connect(openAction, &QAction::triggered, this, [&]() {
@@ -169,6 +208,19 @@ Clipboard::Clipboard(QWidget *parent)
 
 Clipboard::~Clipboard()
 {
+#ifdef Q_OS_WIN32
+	if (mouseHook)
+	{
+		UnhookWindowsHookEx(mouseHook);
+		mouseHook = NULL;
+	}
+	if (keyboardHook)
+	{
+		UnhookWindowsHookEx(keyboardHook);
+		keyboardHook = NULL;
+	}
+#endif // Q_OS_WIN32
+
     delete ui;
 }
 
@@ -180,6 +232,9 @@ void Clipboard::LoadSettings()
 	ui->toolBar->addWidget(ESCButton);
 	ui->toolBar->addWidget(HideButton);
 	ui->toolBar->addWidget(MoreButton);
+	ui->toolBar->addWidget(PreButton);
+	ui->toolBar->addWidget(NextButton);
+
 	ui->statusBar->setFixedHeight(12);
 
 	ui->toolBar->setFont(textFont);
@@ -190,6 +245,10 @@ void Clipboard::LoadSettings()
 	HideButton->setText("-");
 	MoreButton->setFixedSize(30, 30);
 	MoreButton->setText("?");
+	PreButton->setFixedSize(30, 30);
+	PreButton->setText("<");
+	NextButton->setFixedSize(30, 30);
+	NextButton->setText(">");
 	/* 初始化样式 */
 	QString buttonStyleSheet = "QPushButton{"
 		"color:white;"
@@ -207,6 +266,7 @@ void Clipboard::LoadSettings()
 	// 设置字体颜色
 	QPalette TextPalette = ui->textBrowser->palette();
 	QPalette DocPalette = ui->DoclistView->palette();
+	QPalette ImgPalette = ui->ImgListWidget->palette();
 	if (!settings.contains("CurrentBackgroundImgIndex")) {
 		settings.setValue("CurrentBackgroundImgIndex", 1);
 	}
@@ -234,8 +294,10 @@ void Clipboard::LoadSettings()
 	}
 	TextPalette.setColor(QPalette::Text, CurrentTextColor);
 	DocPalette.setColor(QPalette::Text, CurrentTextColor);
+	ImgPalette.setColor(QPalette::Text, CurrentTextColor);
 
 	ui->DoclistView->setPalette(DocPalette);
+	ui->ImgListWidget->setPalette(ImgPalette);
 	ui->centralWidget->setStyleSheet("QWidget#centralWidget{border-image:url(:/Img/bgi1Border.png);}");
 	ui->statusBar->setStyleSheet(("QWidget#statusBar{background-image:url(:/Img/bgi1Border.png);}"));
 	ui->toolBar->setStyleSheet(("QWidget#toolBar{background-image:url(:/Img/bgi1Border.png);}"));
@@ -244,22 +306,31 @@ void Clipboard::LoadSettings()
 	ui->textBrowser->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
 
 	ui->DoclistView->setFont(textFont);
-	ui->DoclistView->setPalette(DocPalette);
+
+	ui->ImgListWidget->setFont(textFont);
 
 	HideButton->setStyleSheet(buttonStyleSheet);
 	ESCButton->setStyleSheet(buttonStyleSheet);
 	MoreButton->setStyleSheet(buttonStyleSheet);
+	PreButton->setStyleSheet(buttonStyleSheet);
+	NextButton->setStyleSheet(buttonStyleSheet);
+
 	ui->textBrowser->setOpenExternalLinks(true);
 	ui->SearchEdit->setVisible(false);
 	ui->SearchEdit->setPlaceholderText(QString::fromLocal8Bit("请输入需要匹配的文本，\"Ctrl + F\" 可以开启或关闭搜索栏"));
 }
 
 // 开启鼠标钩子
-void Clipboard::startMouseHook()
+void Clipboard::startHook()
 {
 #ifdef Q_OS_WIN32
-	mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseProc, GetModuleHandle(NULL), 0);
-	if (mouseHook == NULL) QMessageBox::warning(nullptr, "error!", "Failed to install mouse hook", QMessageBox::Ok);
+	/* 鼠标钩子 */
+	mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseEvent, GetModuleHandle(NULL), 0);
+	if (mouseHook == NULL) QMessageBox::warning(QApplication::activeWindow(), "error!", "Failed to install mouse hook", QMessageBox::Ok);
+	/* 键盘钩子 */
+	keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyEvent, GetModuleHandle(NULL), 0);
+	if (keyboardHook == NULL) QMessageBox::warning(QApplication::activeWindow(), "error!", "Failed to install keyboard hook", QMessageBox::Ok);
+
 #endif // Q_OS_WIN32
 
 }
@@ -269,16 +340,21 @@ void Clipboard::onClipboardDataChanged()
 	if (!ui->textBrowser->hasFocus()) /* 只有当焦点在外部时才触发 */
 	{
 		const QMimeData* mimeData = clipboard->mimeData();
+		QDateTime currentDateTime = QDateTime::currentDateTime();
+		QString currentDateTimeString = currentDateTime.toString("yyyy-MM-dd hh:mm:ss");
+		show();
+
 		if (Clipboard::mouseX - width() / 2 < 0) move(0, 30);
 		else if (Clipboard::mouseX - width() / 2 + width() > screenWidth) move(screenWidth - width(), 30);
 		else move(Clipboard::mouseX - width() / 2, 30);
-		show();
+
 		// 图片区 or 文件区
 		if (mimeData->hasFormat("text/uri-list")) {
 			// 如果后缀不是图片类型的那么就以文件列表的形式展示出来
 
 			QStringList paths = mimeData->text().split("\n", Qt::SkipEmptyParts);
-			imgPaths.clear();
+			
+			ImgPaths.clear();
 			if (ui->ImgListWidget->count() > 0) qDeleteAll(ui->ImgListWidget->findItems(QString(), Qt::MatchContains));
 
 			QSet<QString> validSuffixes = { "jpg", "jpeg", "png", "bmp" ,"webp","svg" };
@@ -287,7 +363,7 @@ void Clipboard::onClipboardDataChanged()
 				QUrl url(QUrl::fromUserInput(path));
 				QString localFilePath = url.toLocalFile();
 				QFile file(localFilePath);
-				imgPaths.append(localFilePath);
+				ImgPaths.append(localFilePath);
 				// 获取文件后缀
 				QFileInfo fileInfo(localFilePath);
 				QString fileSuffix = fileInfo.suffix();
@@ -297,38 +373,43 @@ void Clipboard::onClipboardDataChanged()
 					IsAllImg = false;
 				}
 			}
-			// 部分或全部都不是图片的
-			QStringList DocPaths = imgPaths;
-			docNames.clear();
+			// 1.文件区 部分或全部都不是图片
+			QStringList docPaths = ImgPaths;
+			DocPaths.clear();
 			if (!IsAllImg)
 			{
 				ui->stackedWidget_2->setCurrentWidget(ui->DocumentPage);
 
-				for (const QString& DocPath : DocPaths) docNames.append(DocPath);
-
-				ui->DoclistView->setModel(new QStringListModel(docNames, this));
+				DocPaths.append(currentDateTimeString);
+				for (const QString& docPath : docPaths) DocPaths.append(docPath);
+				ui->DoclistView->setModel(new QStringListModel(DocPaths, this));
+				// 保存的是QStringList DocPaths
+				SaveHistory(ContentType::DOC, DocPaths);
 				return;
 			}
-			// 全为图片
+			// 2.图片区 全为图片
 			ui->stackedWidget_2->setCurrentWidget(ui->ImagePage);
-			for (const QString& imgPath : imgPaths) {
+			QListWidgetItem *currentTimeItem = new QListWidgetItem(ui->ImgListWidget);
+			currentTimeItem->setText(currentDateTimeString);
+			ui->ImgListWidget->addItem(currentTimeItem);
+			ImgPaths.insert(0, currentDateTimeString);
+
+			for (const QString& imgPath : ImgPaths) {
 				QListWidgetItem *item = new QListWidgetItem(ui->ImgListWidget);
 				QPixmap pixmap(imgPath);
 				item->setIcon(QIcon(pixmap));
 				ui->ImgListWidget->addItem(item);
 			}
-
+			SaveHistory(ContentType::IMG, ImgPaths);
 		}
-		// 文字区
+		// 3.文字区
 		else if (mimeData->hasText() && !mimeData->hasFormat("text/uri-list"))
 		{
 			ui->stackedWidget_2->setCurrentWidget(ui->TextPage);
 			QRegularExpression urlRegex("(https?|ftp)://([A-Za-z0-9.-]+)(/[^\\s]*)?");
 			QRegularExpression emailRegex("\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b");
-			//QRegularExpression englishWordPattern("\\b[A-Za-z]+\\b");
 
 			QString mimeText = (mimeData->*(&QMimeData::text))();
-
 			/* URLs */
 			QRegularExpressionMatchIterator urlMatchIterator = urlRegex.globalMatch(mimeText);
 			while (urlMatchIterator.hasNext()) {
@@ -337,7 +418,6 @@ void Clipboard::onClipboardDataChanged()
 				QString link = QString("<a href='%1'>%1</a>").arg(url);
 				mimeText.replace(url, link);
 			}
-
 			/* Emails */
 			QRegularExpressionMatchIterator emailMatchIterator = emailRegex.globalMatch(mimeText);
 			while (emailMatchIterator.hasNext()) {
@@ -347,7 +427,12 @@ void Clipboard::onClipboardDataChanged()
 				mimeText.replace(email, emailLink);
 			}
 
-			handledText = "<html><pre>" + mimeText + "</pre></html>";
+			QStringList mimeTextList;
+			mimeTextList.append(currentDateTimeString);
+			mimeTextList.append(mimeText);
+			SaveHistory(ContentType::TEXT, mimeTextList);
+
+			handledText = "<html><pre>" + currentDateTimeString + "\n" + mimeText + "</pre></html>";
 			ui->textBrowser->setHtml(handledText);
 
 		}
@@ -374,14 +459,17 @@ void Clipboard::clickMoreButton()
 	connect(ChangeTextColorAction, &QAction::triggered, this, [&]() {
 		QPalette TextPalette = ui->textBrowser->palette();
 		QPalette DocPalette = ui->DoclistView->palette();
+		QPalette ImgPalette = ui->ImgListWidget->palette();
 		QColor textColor = TextPalette.color(QPalette::Text);
 
 		QColor color = QColorDialog::getColor(textColor, this, QString::fromLocal8Bit("选择一种文本颜色"));
 		if (color.isValid()) {
 			TextPalette.setColor(QPalette::Text, color);
 			DocPalette.setColor(QPalette::Text, color);
+			ImgPalette.setColor(QPalette::Text, color);
 			ui->textBrowser->setPalette(TextPalette);
 			ui->DoclistView->setPalette(DocPalette);
+			ui->ImgListWidget->setPalette(ImgPalette);
 			settings.setValue("CurrentTextColor", color);
 		}
 	});
@@ -434,6 +522,91 @@ void Clipboard::clickMoreButton()
 	menu.exec(MoreButton->mapToGlobal(QPoint(0, MoreButton->height())));
 }
 
+/* 跳转上次记录 */
+void Clipboard::Turn2PreHistory()
+{
+	QFile file("ContentHistory.txt");
+	if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+
+	QStringList contentList;
+	QTextStream in(&file);
+
+	bool readLines = false;
+	QString line;
+	QDateTime currentDateTime = QDateTime::currentDateTime();
+	QString currentYear = currentDateTime.toString("yyyy");
+	QString combinedLines; // 用于存储组合的行
+
+	while (!in.atEnd()) {
+		line = in.readLine();
+
+		if (line.startsWith(currentYear) && readLines) {
+			// 遇到以年份开头的行且已经开始读取，停止读取
+			contentList.append(combinedLines);
+			combinedLines.clear();
+			readLines = false;
+		}
+		if (readLines) {
+			int commaIndex = line.indexOf(',');
+			if (commaIndex != -1) {
+				line[commaIndex] = '\n';
+			}
+			combinedLines += line;
+		}
+
+		if (line.startsWith(currentYear)) {
+			int commaIndex = line.indexOf(',');
+			if (commaIndex != -1) {
+				line[commaIndex] = '\n';
+			}
+			readLines = true;
+			combinedLines += line;
+		}
+	}
+	/* 如果只有一条记录 */
+	if (!combinedLines.isEmpty()) {
+		contentList.append(combinedLines);
+	}
+
+	qDebug() << contentList.at(0);
+	handledText = "<html><pre>" + contentList.at(0) + "</pre></html>";
+	ui->textBrowser->setHtml(handledText);
+	file.close();
+}
+
+/* 跳转到下次记录 */
+void Clipboard::Turn2NextHistory()
+{
+
+}
+
+/* 保存复制记录 */
+void Clipboard::SaveHistory(ContentType contentType, const QStringList& contents)
+{
+	QFile file("ContentHistory.txt");
+	if (file.open(QIODevice::Append | QIODevice::Text))
+	{
+		QTextStream out(&file);
+		switch (contentType)
+		{
+		case Clipboard::TEXT:
+			out << contents.join(",");
+			break;
+		case Clipboard::IMG:
+			out << contents.join(",");
+			break;
+		case Clipboard::DOC:
+			out << contents.join(",");
+			break;
+		default:
+			break;
+		}
+		out << "\n";
+	}
+	else QMessageBox::warning(QApplication::activeWindow(), "error!", QString::fromLocal8Bit("不能保存历史记录，请检查文件!"), QMessageBox::Ok);
+	
+	file.close();
+}
 
 void Clipboard::mousePressEvent(QMouseEvent *event)
 {
