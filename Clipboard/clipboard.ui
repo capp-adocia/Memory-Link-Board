@@ -42,10 +42,10 @@
      <number>12</number>
     </property>
     <property name="topMargin">
-     <number>12</number>
+     <number>0</number>
     </property>
     <property name="rightMargin">
-     <number>0</number>
+     <number>12</number>
     </property>
     <property name="bottomMargin">
      <number>0</number>
@@ -151,13 +151,13 @@
    <property name="minimumSize">
     <size>
      <width>0</width>
-     <height>0</height>
+     <height>20</height>
     </size>
    </property>
    <property name="maximumSize">
     <size>
      <width>16777215</width>
-     <height>16777215</height>
+     <height>20</height>
     </size>
    </property>
   </widget>
@@ -184,7 +184,7 @@
     <bool>false</bool>
    </property>
    <attribute name="toolBarArea">
-    <enum>RightToolBarArea</enum>
+    <enum>TopToolBarArea</enum>
    </attribute>
    <attribute name="toolBarBreak">
     <bool>false</bool>

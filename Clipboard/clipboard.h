@@ -9,7 +9,6 @@
 	#error "Unsupported platform"
 #endif
 
-
 #include <QtWidgets/QMainWindow>
 #include "ui_clipboard.h"
 #include <QClipboard>
@@ -38,6 +37,10 @@
 #include <QTextStream>
 #include <QDateTime>
 
+#define LEFT 1
+#define RIGHT -1
+#define BUTTONSIZE QSize(24,24)
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class ClipboardClass; };
 QT_END_NAMESPACE
@@ -49,13 +52,16 @@ public:
     Clipboard(QWidget *parent = nullptr);
     ~Clipboard();
 	void LoadSettings();
-    void startHook();
+	void startMouseHook();
+	void startKeyboardHook();
+	void stopMouseHook();
+	void stopKeyboardHook();
 	static Clipboard* staticThis;
     static int mouseX; // 鼠标X坐标
     static int mouseY; // 鼠标Y坐标
 	enum ContentType
 	{
-		TEXT, // 文本
+		TXT, // 文本
 		IMG, // 图片
 		DOC, // 文件及文件夹
 	};
@@ -71,8 +77,7 @@ signals:
 public slots:
     void onClipboardDataChanged();
 	void clickMoreButton(); // 显示菜单栏
-	void Turn2PreHistory(); // 跳转上次记录
-	void Turn2NextHistory(); // 跳转到下次记录
+	void Turn2History(qint8 direction); // 跳转到历史记录
 
 private:
     Ui::ClipboardClass *ui;
@@ -80,6 +85,7 @@ private:
     QClipboard *clipboard;
 	QPoint lastPos;
 	int screenWidth;
+	int screenHeight;
     QStringList ImgPaths;
     QStringList DocPaths;
 	QString handledText; // 处理好的文本
@@ -88,4 +94,11 @@ private:
 	QPushButton* MoreButton;
 	QPushButton* PreButton;
 	QPushButton* NextButton;
+	QPushButton* FixButton;
+	bool IsFixed; // 是否固定窗口位置
+	quint64 HisConCount; // 每记录一条数据就自增一次
+	int HisConOffset; // 记录离当前记录的偏移量
 };
+
+/* 中文转Unicode */
+QString operator""_toUnicode(const char* CN_Str, size_t len);

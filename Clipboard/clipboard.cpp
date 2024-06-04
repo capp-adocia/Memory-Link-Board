@@ -30,7 +30,7 @@ LRESULT CALLBACK KeyEvent(int nCode, WPARAM wParam, LPARAM lParam)
 	{
 		KBDLLHOOKSTRUCT* pKeyboardStruct = (KBDLLHOOKSTRUCT*)lParam;
 		/* Ctrl + Shift + V || Ctrl + V */
-		if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && (GetAsyncKeyState(VK_SHIFT) & 0x8000) && (pKeyboardStruct->vkCode == 'V') || 
+		if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && (GetAsyncKeyState(VK_SHIFT) & 0x8000) && (pKeyboardStruct->vkCode == 'V') ||
 			(GetAsyncKeyState(VK_CONTROL) & 0x8000) && (pKeyboardStruct->vkCode == 'V'))
 		{
 			Clipboard::staticThis->setVisible(false);
@@ -52,6 +52,9 @@ LRESULT CALLBACK KeyEvent(int nCode, WPARAM wParam, LPARAM lParam)
 
 #endif // Q_OS_WIN32
 
+/* 中文转Unicode */
+QString operator""_toUnicode(const char* CN_Str, size_t len) { return QString::fromLocal8Bit(CN_Str); }
+
 Clipboard::Clipboard(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::ClipboardClass())
@@ -62,6 +65,10 @@ Clipboard::Clipboard(QWidget *parent)
 	, MoreButton(new QPushButton(ui->toolBar))
 	, PreButton(new QPushButton(ui->toolBar))
 	, NextButton(new QPushButton(ui->toolBar))
+	, FixButton(new QPushButton(ui->toolBar))
+	, IsFixed(true)
+	, HisConCount(0)
+	, HisConOffset(0)
 {
     ui->setupUi(this);
 	setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
@@ -91,11 +98,9 @@ Clipboard::Clipboard(QWidget *parent)
 
 #endif // Q_OS_WIN32
 
-	/* 获取设备屏幕的宽度 */
+	/* 获取设备屏幕的宽高 */
 	screenWidth = QGuiApplication::primaryScreen()->geometry().width();
-
-	/* 启动钩子 */
-	startHook();
+	screenHeight = QGuiApplication::primaryScreen()->geometry().height();
 	
 	/* 剪切板 */
 	clipboard = QApplication::clipboard();
@@ -118,15 +123,26 @@ Clipboard::Clipboard(QWidget *parent)
 	connect(MoreButton, &QPushButton::clicked, this, &Clipboard::clickMoreButton);
 
 	/* 点击上一个记录按钮 */
-	connect(PreButton, &QPushButton::clicked, this, &Clipboard::Turn2PreHistory);
+	connect(PreButton, &QPushButton::clicked, [&] {
+		Turn2History(LEFT);
+	});
 
 	/* 点击下一个记录按钮 */
-	connect(NextButton, &QPushButton::clicked, this, &Clipboard::Turn2NextHistory);
-
+	connect(NextButton, &QPushButton::clicked, [&] {
+		Turn2History(RIGHT);
+	});
+	/* 点击固定按钮 */
+	connect(FixButton, &QPushButton::clicked, this, [&] {
+		IsFixed = !IsFixed;
+		IsFixed ? stopMouseHook() : startMouseHook();
+		IsFixed ? FixButton->setIcon(QIcon(":/Img/fixed.png")) : FixButton->setIcon(QIcon(":/Img/unfixed.png"));
+		IsFixed ? FixButton->setToolTip("已固定"_toUnicode) : FixButton->setToolTip("未固定"_toUnicode);
+		settings.setValue("IsFixed", IsFixed);
+	});
 	/* 文本匹配 */
 	connect(ui->SearchEdit, &QLineEdit::textChanged, this, [&] {
 		// 清空之前样式
-		ui->textBrowser->setHtml(handledText);
+		ui->textBrowser->setText(handledText);
 		QTextDocument *doc = ui->textBrowser->document();
 		QTextCursor cursor = doc->find(ui->SearchEdit->text());
 
@@ -179,8 +195,8 @@ Clipboard::Clipboard(QWidget *parent)
 		if (index.isValid()) {
 			QMenu menu;
 			// 添加菜单项
-			QAction *openAction = menu.addAction(QString::fromLocal8Bit("打开文件路径"));
-			QAction *startAction = menu.addAction(QString::fromLocal8Bit("启动文件"));
+			QAction *openAction = menu.addAction("打开文件路径"_toUnicode);
+			QAction *startAction = menu.addAction("启动文件"_toUnicode);
 			QString itemPath = DocPaths.at(index.row());
 
 			/* 打开文件路径 */
@@ -208,18 +224,8 @@ Clipboard::Clipboard(QWidget *parent)
 
 Clipboard::~Clipboard()
 {
-#ifdef Q_OS_WIN32
-	if (mouseHook)
-	{
-		UnhookWindowsHookEx(mouseHook);
-		mouseHook = NULL;
-	}
-	if (keyboardHook)
-	{
-		UnhookWindowsHookEx(keyboardHook);
-		keyboardHook = NULL;
-	}
-#endif // Q_OS_WIN32
+	stopMouseHook();
+	stopKeyboardHook();
 
     delete ui;
 }
@@ -234,21 +240,37 @@ void Clipboard::LoadSettings()
 	ui->toolBar->addWidget(MoreButton);
 	ui->toolBar->addWidget(PreButton);
 	ui->toolBar->addWidget(NextButton);
+	ui->toolBar->addWidget(FixButton);
 
 	ui->statusBar->setFixedHeight(12);
-
 	ui->toolBar->setFont(textFont);
-
-	ESCButton->setFixedSize(30,30);
+	
+	ESCButton->setFixedSize(BUTTONSIZE);
+	ESCButton->setToolTip("退出"_toUnicode);
 	ESCButton->setText("X");
-	HideButton->setFixedSize(30, 30);
+	HideButton->setFixedSize(BUTTONSIZE);
 	HideButton->setText("-");
-	MoreButton->setFixedSize(30, 30);
+	HideButton->setToolTip("最小化"_toUnicode);
+	MoreButton->setFixedSize(BUTTONSIZE);
 	MoreButton->setText("?");
-	PreButton->setFixedSize(30, 30);
+	MoreButton->setToolTip("更多"_toUnicode);
+	PreButton->setFixedSize(BUTTONSIZE);
 	PreButton->setText("<");
-	NextButton->setFixedSize(30, 30);
+	PreButton->setToolTip("前一次记录"_toUnicode);
+	NextButton->setFixedSize(BUTTONSIZE);
 	NextButton->setText(">");
+	NextButton->setToolTip("后一次记录"_toUnicode);
+	FixButton->setFixedSize(BUTTONSIZE);
+
+	if (!settings.contains("IsFixed")) settings.setValue("IsFixed", IsFixed);
+	IsFixed = settings.value("IsFixed").toBool();
+	startKeyboardHook();
+	IsFixed ? stopMouseHook() : startMouseHook();
+	IsFixed ? FixButton->setIcon(QIcon(":/Img/fixed.png")) : FixButton->setIcon(QIcon(":/Img/unfixed.png"));
+	IsFixed ? FixButton->setToolTip("已固定"_toUnicode) : FixButton->setToolTip("未固定"_toUnicode);
+
+	if(settings.contains("historyContentCount")) HisConCount = settings.value("historyContentCount").toULongLong();
+
 	/* 初始化样式 */
 	QString buttonStyleSheet = "QPushButton{"
 		"color:white;"
@@ -317,22 +339,51 @@ void Clipboard::LoadSettings()
 
 	ui->textBrowser->setOpenExternalLinks(true);
 	ui->SearchEdit->setVisible(false);
-	ui->SearchEdit->setPlaceholderText(QString::fromLocal8Bit("请输入需要匹配的文本，\"Ctrl + F\" 可以开启或关闭搜索栏"));
+	ui->SearchEdit->setPlaceholderText("请输入需要匹配的文本，\"Ctrl + F\" 可以开启或关闭搜索栏"_toUnicode);
 }
 
-// 开启鼠标钩子
-void Clipboard::startHook()
+void Clipboard::startMouseHook()
 {
 #ifdef Q_OS_WIN32
-	/* 鼠标钩子 */
-	mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseEvent, GetModuleHandle(NULL), 0);
-	if (mouseHook == NULL) QMessageBox::warning(QApplication::activeWindow(), "error!", "Failed to install mouse hook", QMessageBox::Ok);
-	/* 键盘钩子 */
-	keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyEvent, GetModuleHandle(NULL), 0);
-	if (keyboardHook == NULL) QMessageBox::warning(QApplication::activeWindow(), "error!", "Failed to install keyboard hook", QMessageBox::Ok);
-
+	/* 开启鼠标钩子 */
+	if (!mouseHook) {
+		mouseHook = SetWindowsHookEx(WH_MOUSE_LL, MouseEvent, GetModuleHandle(NULL), 0);
+		if (!mouseHook) QMessageBox::warning(this, "error!", "Failed to install mouse hook", QMessageBox::Ok);
+	}
 #endif // Q_OS_WIN32
+}
 
+void Clipboard::startKeyboardHook()
+{
+#ifdef Q_OS_WIN32
+	/* 开启键盘钩子 */
+	if (!keyboardHook) {
+		keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyEvent, GetModuleHandle(NULL), 0);
+		if (!keyboardHook) QMessageBox::warning(this, "error!", "Failed to install keyboard hook", QMessageBox::Ok);
+	}
+#endif // Q_OS_WIN32
+}
+
+void Clipboard::stopMouseHook()
+{
+#ifdef Q_OS_WIN32
+	/* 关闭鼠标钩子 */
+	if (mouseHook) {
+		UnhookWindowsHookEx(mouseHook);
+		mouseHook = NULL;
+	}
+#endif // Q_OS_WIN32
+}
+
+void Clipboard::stopKeyboardHook()
+{
+#ifdef Q_OS_WIN32
+	/* 关闭键盘钩子 */
+	if (keyboardHook) {
+		UnhookWindowsHookEx(keyboardHook);
+		keyboardHook = NULL;
+	}
+#endif // Q_OS_WIN32
 }
 
 void Clipboard::onClipboardDataChanged()
@@ -343,11 +394,31 @@ void Clipboard::onClipboardDataChanged()
 		QDateTime currentDateTime = QDateTime::currentDateTime();
 		QString currentDateTimeString = currentDateTime.toString("yyyy-MM-dd hh:mm:ss");
 		show();
-
-		if (Clipboard::mouseX - width() / 2 < 0) move(0, 30);
-		else if (Clipboard::mouseX - width() / 2 + width() > screenWidth) move(screenWidth - width(), 30);
-		else move(Clipboard::mouseX - width() / 2, 30);
-
+		
+		int GapX = Clipboard::mouseX - static_cast<int>(screenWidth / 2); // 计算鼠标和屏幕中心点之间差距
+		int GapY = Clipboard::mouseY - static_cast<int>(screenHeight / 2);
+		
+		int newPointX = static_cast<int>(screenWidth / 2) - GapX;
+		int newPointY = static_cast<int>(screenHeight / 2) - GapY;
+		if (!IsFixed)
+		{
+			// 当新坐标超出屏幕的左上角
+			if (newPointX + width() > screenWidth && newPointY + height() > screenHeight) move(screenWidth - width(), screenHeight - height()); 
+			// 当新坐标超出屏幕的右上角
+			else if (newPointX < 0 && newPointY < 0) move(0, 0);
+			// 当新坐标超出屏幕左侧
+			else if (newPointX < 0) move(0, newPointY);
+			// 当新坐标超出屏幕右侧
+			else if (newPointX + width() > screenWidth) move(screenWidth - width(), newPointY); 
+			// 当新坐标超出屏幕上侧
+			else if (newPointY < 0) move(newPointX, 0); 
+			// 当新坐标超出屏幕下侧
+			else if (newPointY + height() > screenHeight) move(newPointX, screenHeight - height());
+			else move(newPointX, newPointY);
+		}
+		/* 重置记录偏移量 */
+		HisConOffset = 0;
+		settings.setValue("historyContentCount", ++HisConCount);
 		// 图片区 or 文件区
 		if (mimeData->hasFormat("text/uri-list")) {
 			// 如果后缀不是图片类型的那么就以文件列表的形式展示出来
@@ -383,16 +454,14 @@ void Clipboard::onClipboardDataChanged()
 				DocPaths.append(currentDateTimeString);
 				for (const QString& docPath : docPaths) DocPaths.append(docPath);
 				ui->DoclistView->setModel(new QStringListModel(DocPaths, this));
-				// 保存的是QStringList DocPaths
-				SaveHistory(ContentType::DOC, DocPaths);
+
+				QStringList modifiedDocPaths = DocPaths; // copy
+				if (!modifiedDocPaths.isEmpty()) modifiedDocPaths[0] = "DOC" + currentDateTimeString; // 保存时需要带上 DOC
+				SaveHistory(ContentType::DOC, modifiedDocPaths);
 				return;
 			}
 			// 2.图片区 全为图片
 			ui->stackedWidget_2->setCurrentWidget(ui->ImagePage);
-			QListWidgetItem *currentTimeItem = new QListWidgetItem(ui->ImgListWidget);
-			currentTimeItem->setText(currentDateTimeString);
-			ui->ImgListWidget->addItem(currentTimeItem);
-			ImgPaths.insert(0, currentDateTimeString);
 
 			for (const QString& imgPath : ImgPaths) {
 				QListWidgetItem *item = new QListWidgetItem(ui->ImgListWidget);
@@ -400,6 +469,11 @@ void Clipboard::onClipboardDataChanged()
 				item->setIcon(QIcon(pixmap));
 				ui->ImgListWidget->addItem(item);
 			}
+			QListWidgetItem *currentTimeItem = new QListWidgetItem(ui->ImgListWidget);
+			currentTimeItem->setText(currentDateTimeString);
+			ui->ImgListWidget->addItem(currentTimeItem);
+			ImgPaths.insert(0, "IMG" + currentDateTimeString);
+
 			SaveHistory(ContentType::IMG, ImgPaths);
 		}
 		// 3.文字区
@@ -428,12 +502,12 @@ void Clipboard::onClipboardDataChanged()
 			}
 
 			QStringList mimeTextList;
-			mimeTextList.append(currentDateTimeString);
+			mimeTextList.append("TXT" + currentDateTimeString);
 			mimeTextList.append(mimeText);
-			SaveHistory(ContentType::TEXT, mimeTextList);
+			SaveHistory(ContentType::TXT, mimeTextList);
 
-			handledText = "<html><pre>" + currentDateTimeString + "\n" + mimeText + "</pre></html>";
-			ui->textBrowser->setHtml(handledText);
+			handledText = currentDateTimeString + "\n" + mimeText;
+			ui->textBrowser->setText(handledText);
 
 		}
 	}
@@ -444,15 +518,14 @@ void Clipboard::clickMoreButton()
 {
 	QMenu menu;
 	// 添加菜单项
-	QAction *HelpAction = menu.addAction(QString::fromLocal8Bit("帮助"));
-	QAction *ChangeTextColorAction = menu.addAction(QString::fromLocal8Bit("更改文本颜色"));
-	QAction *ChangeBackgroundImageAction = menu.addAction(QString::fromLocal8Bit("更改背景图片"));
-
+	QAction *HelpAction = menu.addAction("帮助"_toUnicode);
+	QAction *ChangeTextColorAction = menu.addAction("更改文本颜色"_toUnicode);
+	QAction *ChangeBackgroundImageAction = menu.addAction("更改背景图片"_toUnicode);
 
 	/* 帮助 */
 	connect(HelpAction, &QAction::triggered, this, [&]() {
 		// 功能暂定
-		QMessageBox::warning(QApplication::activeWindow(), QString::fromLocal8Bit("提示"), QString::fromLocal8Bit("通过Ctrl+F可以启动文本匹配功能"), QMessageBox::Ok);
+		QMessageBox::warning(this, "提示"_toUnicode, "通过Ctrl+F可以启动文本匹配功能"_toUnicode, QMessageBox::Ok);
 	});
 
 	/* 更改文本颜色 */
@@ -462,7 +535,7 @@ void Clipboard::clickMoreButton()
 		QPalette ImgPalette = ui->ImgListWidget->palette();
 		QColor textColor = TextPalette.color(QPalette::Text);
 
-		QColor color = QColorDialog::getColor(textColor, this, QString::fromLocal8Bit("选择一种文本颜色"));
+		QColor color = QColorDialog::getColor(textColor, this, "选择一种文本颜色"_toUnicode);
 		if (color.isValid()) {
 			TextPalette.setColor(QPalette::Text, color);
 			DocPalette.setColor(QPalette::Text, color);
@@ -477,9 +550,9 @@ void Clipboard::clickMoreButton()
 	/* 更改背景图片 */
 	connect(ChangeBackgroundImageAction, &QAction::triggered, this, [&]() {
 		QMenu backgroundImgMenu;
-		QAction *BackgroundImg1Action = backgroundImgMenu.addAction(QString::fromLocal8Bit("背景1"));
-		QAction *BackgroundImg2Action = backgroundImgMenu.addAction(QString::fromLocal8Bit("背景2"));
-		QAction *customizeAction = backgroundImgMenu.addAction(QString::fromLocal8Bit("自定义"));
+		QAction *BackgroundImg1Action = backgroundImgMenu.addAction("背景1"_toUnicode);
+		QAction *BackgroundImg2Action = backgroundImgMenu.addAction("背景2"_toUnicode);
+		QAction *customizeAction = backgroundImgMenu.addAction("自定义"_toUnicode);
 		BackgroundImg1Action->setCheckable(true);
 		BackgroundImg2Action->setCheckable(false);
 		customizeAction->setCheckable(false);
@@ -502,7 +575,7 @@ void Clipboard::clickMoreButton()
 		});
 		/* 自定义 */
 		connect(customizeAction, &QAction::triggered, this, [&]() {
-			QString imagePath = QFileDialog::getOpenFileName(this, QString::fromLocal8Bit("选择你的背景图片"), QDir::homePath(), "Images (*.png *.jpg)");
+			QString imagePath = QFileDialog::getOpenFileName(this, "选择你的背景图片"_toUnicode, QDir::homePath(), "Images (*.png *.jpg)");
 			if (!imagePath.isEmpty()) {
 				QString textBrowserWidgetStyleSheet = "QWidget#textBrowser{border-image:url(" + imagePath + ");}";
 				QString ImgListWidgetStyleSheet = "QWidget#textBrowser{border-image:url(" + imagePath + ");}";
@@ -522,62 +595,108 @@ void Clipboard::clickMoreButton()
 	menu.exec(MoreButton->mapToGlobal(QPoint(0, MoreButton->height())));
 }
 
-/* 跳转上次记录 */
-void Clipboard::Turn2PreHistory()
+void Clipboard::Turn2History(qint8 direction)
 {
+	if (direction == LEFT)
+	{
+		// 如果翻到第零条记录
+		if (HisConCount + HisConOffset == 1)
+		{
+			QMessageBox::warning(this, "翻到头了"_toUnicode, "这已经是第一条记录了!"_toUnicode, QMessageBox::Ok);
+			return;
+		}
+		--HisConOffset;
+	}
+	else if (direction == RIGHT)
+	{
+		// 如果翻到第最后一条记录 即当前位置就是最新记录
+		if (HisConOffset == 0)
+		{
+			QMessageBox::warning(this, "翻到尾了"_toUnicode, "这已经是最后一条记录了!"_toUnicode, QMessageBox::Ok);
+			return;
+		}
+		++HisConOffset;
+	}
+
 	QFile file("ContentHistory.txt");
 	if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
-
-	QStringList contentList;
 	QTextStream in(&file);
 
-	bool readLines = false;
+	bool IsReadLining = false;
 	QString line;
 	QDateTime currentDateTime = QDateTime::currentDateTime();
 	QString currentYear = currentDateTime.toString("yyyy");
-	QString combinedLines; // 用于存储组合的行
+	QString contentLines; // 用于存储组合的行
+	quint64 currentHistoryLine = 0;
 
 	while (!in.atEnd()) {
 		line = in.readLine();
-
-		if (line.startsWith(currentYear) && readLines) {
-			// 遇到以年份开头的行且已经开始读取，停止读取
-			contentList.append(combinedLines);
-			combinedLines.clear();
-			readLines = false;
-		}
-		if (readLines) {
-			int commaIndex = line.indexOf(',');
-			if (commaIndex != -1) {
-				line[commaIndex] = '\n';
+		// 如果以年份开头就自增 跳过 直到遇到当前保存的记录数
+		if ((line.startsWith("TXT" + currentYear) ||
+			line.startsWith("IMG" + currentYear) ||
+			line.startsWith("DOC" + currentYear)) && !IsReadLining)
+		{
+			if (line.startsWith("TXT"))
+			{
+				int commaIndex = line.indexOf(',');
+				if (commaIndex != -1) line[commaIndex] = '\n';
 			}
-			combinedLines += line;
-		}
-
-		if (line.startsWith(currentYear)) {
-			int commaIndex = line.indexOf(',');
-			if (commaIndex != -1) {
-				line[commaIndex] = '\n';
+			if (++currentHistoryLine == HisConCount + HisConOffset)
+			{
+				// 开始读取这一行，并且继续向下读取，直到遇到以年份开头
+				contentLines += line;
+				IsReadLining = true;
+				continue;
 			}
-			readLines = true;
-			combinedLines += line;
+		}
+		if (IsReadLining)
+		{
+			if (line.startsWith("TXT" + currentYear) ||
+				line.startsWith("IMG" + currentYear) ||
+				line.startsWith("DOC" + currentYear)) break;
+			contentLines += "\n" + line;
 		}
 	}
-	/* 如果只有一条记录 */
-	if (!combinedLines.isEmpty()) {
-		contentList.append(combinedLines);
+
+	QString hisConType = contentLines.left(3);
+	QStringList contentLinesList; // 保存切分号的数据
+	contentLines = contentLines.mid(3); // 去除前三个字符
+
+	// 判断是哪种类型的记录
+	if (hisConType == "TXT")
+	{
+		ui->stackedWidget_2->setCurrentWidget(ui->TextPage);
+		ui->textBrowser->setText(contentLines);
+	}
+	else if (hisConType == "IMG")
+	{
+		ui->stackedWidget_2->setCurrentWidget(ui->ImagePage);
+		// 释放之前的分配的内存
+		while (ui->ImgListWidget->count() > 0) delete ui->ImgListWidget->takeItem(0);
+		contentLinesList = contentLines.split(',');
+		QListWidgetItem *currentTimeItem = new QListWidgetItem(ui->ImgListWidget);
+		for (const QString& imgPath : contentLinesList) {
+			QListWidgetItem *item = new QListWidgetItem(ui->ImgListWidget);
+			QPixmap pixmap(imgPath);
+			item->setIcon(QIcon(pixmap));
+			ui->ImgListWidget->addItem(item);
+		}
+		currentTimeItem->setText(contentLinesList.at(0));
+		ui->ImgListWidget->addItem(currentTimeItem);
+	}
+	else if (hisConType == "DOC")
+	{
+		ui->stackedWidget_2->setCurrentWidget(ui->DocumentPage);
+		// 释放之前分配的内存
+		QStringListModel* model = static_cast<QStringListModel*>(ui->DoclistView->model());
+		if (model) delete model;
+		DocPaths.clear();
+		contentLinesList = contentLines.split(',');
+		for (const QString& docPath : contentLinesList) DocPaths.append(docPath);
+		ui->DoclistView->setModel(new QStringListModel(DocPaths, this));
 	}
 
-	qDebug() << contentList.at(0);
-	handledText = "<html><pre>" + contentList.at(0) + "</pre></html>";
-	ui->textBrowser->setHtml(handledText);
 	file.close();
-}
-
-/* 跳转到下次记录 */
-void Clipboard::Turn2NextHistory()
-{
-
 }
 
 /* 保存复制记录 */
@@ -589,7 +708,7 @@ void Clipboard::SaveHistory(ContentType contentType, const QStringList& contents
 		QTextStream out(&file);
 		switch (contentType)
 		{
-		case Clipboard::TEXT:
+		case Clipboard::TXT:
 			out << contents.join(",");
 			break;
 		case Clipboard::IMG:
@@ -603,7 +722,7 @@ void Clipboard::SaveHistory(ContentType contentType, const QStringList& contents
 		}
 		out << "\n";
 	}
-	else QMessageBox::warning(QApplication::activeWindow(), "error!", QString::fromLocal8Bit("不能保存历史记录，请检查文件!"), QMessageBox::Ok);
+	else QMessageBox::warning(this, "error!", "不能保存历史记录，请检查文件!"_toUnicode, QMessageBox::Ok);
 	
 	file.close();
 }
@@ -638,7 +757,7 @@ void Clipboard::keyPressEvent(QKeyEvent *event)
 {
 	if (event->modifiers() == Qt::ControlModifier &&
 		event->key() == Qt::Key_F &&
-		(ui->stackedWidget_2->currentWidget() == ui->TextPage)) 
+		(ui->stackedWidget_2->currentWidget() == ui->TextPage))
 	{
 		/* 切换显示搜索栏 */
 		if (ui->SearchEdit->isVisible())

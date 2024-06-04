@@ -1,1 +1,50 @@
-2024-06-02 21:08:17,isEmpty
+TXT2024-06-04 23:31:15,/* 获取滚轮滚动值 */ 
+void Clipboard::wheelEvent(QWheelEvent* event)
+{
+	int delta = event->angleDelta().y();
+	// 调节图片项的大小
+	if (delta > 0) ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() + QSize(20,20));
+	else ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() - QSize(20, 20));
+
+	event->accept();
+}
+
+TXT2024-06-04 23:31:18,
+}
+
+/* 获取滚轮滚动值 */ 
+void Clipboard::w
+TXT2024-06-04 23:31:19,
+
+void Clipboard::mouseMoveEvent(QMouseEvent *event)
+{
+	if (event->buttons() & Qt::LeftButton) {
+		move(event->globalPos() - lastPos);
+	}
+}
+TXT2024-06-04 23:31:20,
+
+void Clipboard::keyPressEvent(QKeyEvent *event)
+{
+	if (event->modifiers() == Qt::ControlModifier &&
+		event->key() == Qt::Key_F &&
+		(ui->stackedWidget_2->currentWidget() == ui->TextPage))
+	{
+TXT2024-06-04 23:31:21,
+void Clipboard::keyPressEvent(QKeyEvent *event)
+{
+	if (event->modifiers() == Qt::ControlModifier &&
+		event->key() == Qt::Key_F &&
+		(ui->stackedWidget_2->currentWidget() == ui->TextPage))
+	{
+		/* 切换显示搜索栏 */
+		if (ui->SearchEdit->isVisible())
+		{
+			ui->SearchEdit
+TXT2024-06-04 23:31:41,setIconSize
+TXT2024-06-04 23:31:52,->
+TXT2024-06-04 23:31:53,ImgListWidget
+TXT2024-06-04 23:31:54,	if (delta > 0) ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() + QSize(20,20));
+	else ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() - QSize(20, 20));
+TXT2024-06-04 23:31:58,setIconSize
+TXT2024-06-04 23:32:01,setIconSize
