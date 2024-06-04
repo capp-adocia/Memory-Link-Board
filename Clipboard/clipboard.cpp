@@ -463,17 +463,18 @@ void Clipboard::onClipboardDataChanged()
 			// 2.图片区 全为图片
 			ui->stackedWidget_2->setCurrentWidget(ui->ImagePage);
 
+			QListWidgetItem *currentTimeItem = new QListWidgetItem(ui->ImgListWidget);
+			currentTimeItem->setText(currentDateTimeString);
+			ui->ImgListWidget->addItem(currentTimeItem);
+			ImgPaths.insert(0, currentDateTimeString);
+
 			for (const QString& imgPath : ImgPaths) {
 				QListWidgetItem *item = new QListWidgetItem(ui->ImgListWidget);
 				QPixmap pixmap(imgPath);
 				item->setIcon(QIcon(pixmap));
 				ui->ImgListWidget->addItem(item);
 			}
-			QListWidgetItem *currentTimeItem = new QListWidgetItem(ui->ImgListWidget);
-			currentTimeItem->setText(currentDateTimeString);
-			ui->ImgListWidget->addItem(currentTimeItem);
-			ImgPaths.insert(0, "IMG" + currentDateTimeString);
-
+			ImgPaths[0] = "IMG" + currentDateTimeString;
 			SaveHistory(ContentType::IMG, ImgPaths);
 		}
 		// 3.文字区
