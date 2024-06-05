@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>491</width>
-    <height>236</height>
+    <width>532</width>
+    <height>243</height>
    </rect>
   </property>
   <property name="font">
@@ -37,12 +37,9 @@
    <bool>true</bool>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QGridLayout" name="gridLayout_3">
+   <layout class="QGridLayout" name="gridLayout_2">
     <property name="leftMargin">
      <number>12</number>
-    </property>
-    <property name="topMargin">
-     <number>0</number>
     </property>
     <property name="rightMargin">
      <number>12</number>
@@ -54,9 +51,28 @@
      <number>0</number>
     </property>
     <item row="0" column="0">
+     <widget class="QLineEdit" name="SearchEdit">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>30</height>
+       </size>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>13</pointsize>
+        <stylestrategy>PreferAntialias</stylestrategy>
+       </font>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0">
      <widget class="QStackedWidget" name="stackedWidget_2">
       <property name="currentIndex">
-       <number>0</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="TextPage">
        <layout class="QGridLayout" name="gridLayout">
@@ -75,27 +91,8 @@
         <property name="spacing">
          <number>0</number>
         </property>
-        <item row="1" column="0">
+        <item row="3" column="0">
          <widget class="QTextBrowser" name="textBrowser"/>
-        </item>
-        <item row="0" column="0">
-         <widget class="QLineEdit" name="SearchEdit">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>30</height>
-           </size>
-          </property>
-          <property name="font">
-           <font>
-            <pointsize>13</pointsize>
-            <stylestrategy>PreferAntialias</stylestrategy>
-           </font>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-         </widget>
         </item>
        </layout>
       </widget>

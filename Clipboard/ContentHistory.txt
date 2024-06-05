@@ -1,78 +1,49 @@
-TXT2024-06-04 23:31:15,/* 获取滚轮滚动值 */ 
-void Clipboard::wheelEvent(QWheelEvent* event)
+TXT2024-06-05 10:41:24,mouseInfo
+TXT2024-06-05 10:41:28,MSLLHOOKSTRUCT
+TXT2024-06-05 10:41:29,
+LRESULT CALLBACK MouseEvent(int nCode, WPARAM wParam, LPARAM lParam)
 {
-	int delta = event->angleDelta().y();
-	// 调节图片项的大小
-	if (delta > 0) ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() + QSize(20,20));
-	else ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() - QSize(20, 20));
-
-	event->accept();
-}
-
-TXT2024-06-04 23:31:18,
-}
-
-/* 获取滚轮滚动值 */ 
-void Clipboard::w
-TXT2024-06-04 23:31:19,
-
-void Clipboard::mouseMoveEvent(QMouseEvent *event)
-{
-	if (event->buttons() & Qt::LeftButton) {
-		move(event->globalPos() - lastPos);
-	}
-}
-TXT2024-06-04 23:31:20,
-
-void Clipboard::keyPressEvent(QKeyEvent *event)
-{
-	if (event->modifiers() == Qt::ControlModifier &&
-		event->key() == Qt::Key_F &&
-		(ui->stackedWidget_2->currentWidget() == ui->TextPage))
+	if (nCode >= 0)
 	{
-TXT2024-06-04 23:31:21,
-void Clipboard::keyPressEvent(QKeyEvent *event)
-{
-	if (event->modifiers() == Qt::ControlModifier &&
-		event->key() == Qt::Key_F &&
-		(ui->stackedWidget_2->currentWidget() == ui->TextPage))
-	{
-		/* 切换显示搜索栏 */
-		if (ui->SearchEdit->isVisible())
-		{
-			ui->SearchEdit
-TXT2024-06-04 23:31:41,setIconSize
-TXT2024-06-04 23:31:52,->
-TXT2024-06-04 23:31:53,ImgListWidget
-TXT2024-06-04 23:31:54,	if (delta > 0) ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() + QSize(20,20));
-	else ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() - QSize(20, 20));
-TXT2024-06-04 23:31:58,setIconSize
-TXT2024-06-04 23:32:01,setIconSize
-DOC2024-06-04 23:36:22,C:/Users/26364/Desktop/vue3
-DOC2024-06-04 23:36:24,C:/Users/26364/Desktop/SpaceSniffer1.3.0.2.exe
-DOC2024-06-04 23:36:25,C:/Users/26364/Desktop/SpaceSniffer1.3.0.2.exe,C:/Users/26364/Desktop/Cisco Packet Tracer.lnk,C:/Users/Public/Desktop/向日葵远程控制.lnk,C:/Users/26364/Desktop/百度网盘.lnk,C:/Users/26364/Desktop/Microsoft Edge.lnk
-DOC2024-06-04 23:38:20,C:/Users/26364/Desktop/英雄故事 (33).pptx
-IMG2024-06-04 23:38:22,C:/Users/26364/Desktop/单片机.png
-IMG2024-06-04 23:38:22,C:/Users/26364/Desktop/1.png
-IMG2024-06-04 23:38:28,C:/Users/26364/Desktop/1.png,C:/Users/26364/Desktop/单片机.png
-IMG2024-06-04 23:39:02,C:/Users/26364/Desktop/单片机.png
-DOC2024-06-04 23:39:14,C:/Users/26364/Desktop/百度网盘.lnk,C:/Users/Public/Desktop/QQ音乐.lnk,C:/Users/26364/Desktop/卸载软件请点击这里geek uninstaller.exe.lnk,C:/Users/26364/Desktop/Cisco Packet Tracer.lnk,C:/Users/Public/Desktop/oCam.lnk,C:/Users/26364/Desktop/Keil uVision4.LNK
-IMG2024-06-04 23:39:21,C:/Users/26364/Desktop/单片机.png,C:/Users/26364/Desktop/1.png
-IMG2024-06-04 23:40:32,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/HelloWorld.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Launch.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Query.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_BinaryKing.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_DedicatedUser.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_EndlessLoop.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_GoldUser.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_InformationConnoisseur.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_InformationExplosion.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_InformationNinja.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_LaunchEnthusiasts.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_LaunchManiac.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_MarathonRunner.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_SearchConqueror.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_SearchDetective.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_SearchMaster.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_SearchWitcher.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_TimeTraveler.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Research.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Run.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_BinaryKing.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_DedicatedUser.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_EndlessLoop.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_GoldUser.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_InformationConnoisseur.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_InformationExplosion.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_InformationNinja.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_LaunchEnthusiasts.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_LaunchManiac.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_MarathonRunner.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_SearchConqueror.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_SearchDetective.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_SearchMaster.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_SearchWitcher.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/UnReach_TimeTraveler.png
-IMG2024-06-04 23:41:36,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Launch.png
-IMG2024-06-04 23:41:38,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_DedicatedUser.png
-IMG2024-06-04 23:41:46,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/HelloWorld.png
-IMG2024-06-04 23:41:47,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_GoldUser.png
-IMG2024-06-04 23:41:48,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Launch.png
-IMG2024-06-04 23:42:10,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Query.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_BinaryKing.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_DedicatedUser.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_EndlessLoop.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_GoldUser.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_InformationConnoisseur.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_InformationExplosion.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_InformationNinja.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_LaunchEnthusiasts.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_LaunchManiac.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_MarathonRunner.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_SearchConqueror.png
-TXT2024-06-04 23:49:17,currentDateTimeString
-IMG2024-06-04 23:49:26,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/HelloWorld.png
-IMG2024-06-04 23:49:27,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_DedicatedUser.png
-IMG2024-06-04 23:49:28,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_EndlessLoop.png
-IMG2024-06-04 23:49:28,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_SearchMaster.png
-IMG2024-06-04 23:49:30,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_SearchDetective.png
-IMG2024-06-04 23:49:30,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_SearchConqueror.png
-IMG2024-06-04 23:49:31,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_MarathonRunner.png
-IMG2024-06-04 23:49:34,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Query.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_BinaryKing.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_DedicatedUser.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_EndlessLoop.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_GoldUser.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_InformationConnoisseur.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_InformationExplosion.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_InformationNinja.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_LaunchEnthusiasts.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_LaunchManiac.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_MarathonRunner.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_SearchConqueror.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_SearchDetective.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_SearchMaster.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_SearchWitcher.png,C:/Users/26364/Documents/QT_APP/DeskBar/Image/AchievementIcon/GeneralIcon/Reach_TimeTraveler.png
-TXT2024-06-04 23:51:52,currentDateTimeString
-TXT2024-06-04 23:52:08,ImgListWidget
+		MSLLHOOKSTRUCT* mouseInfo = (MSLLHOOKSTRUCT*)lParam;
+		int mouseX = mouseInfo->pt.x;
+		int mouseY = mouseInfo->pt.y;
+
+		
+		Clipboard::m
+TXT2024-06-05 10:41:30,board::mouseY = 0;
+Clipboard* Clipboard::staticThis = nullptr;
+
+#ifdef Q_OS_WIN32
+HHOOK mouseHook = NULL;
+HHOOK keyboardHook = NULL;
+
+
+LRESULT CALLBACK Mo
+DOC2024-06-05 10:41:33,C:/Users/26364/Desktop/TESV.exe.lnk
+DOC2024-06-05 10:41:35,C:/Users/26364/Desktop/Microsoft Edge.lnk,C:/Users/26364/Desktop/SpaceSniffer1.3.0.2.exe
+DOC2024-06-05 10:41:36,C:/Users/26364/Desktop/卸载软件请点击这里geek uninstaller.exe.lnk
+DOC2024-06-05 10:41:37,C:/Users/26364/Desktop/stc-isp-15xx-v6.87D.exe
+IMG2024-06-05 10:41:39,C:/Users/26364/Desktop/1.png,C:/Users/26364/Desktop/单片机.png
+IMG2024-06-05 10:41:39,C:/Users/26364/Desktop/单片机.png
+IMG2024-06-05 10:41:40,C:/Users/26364/Desktop/1.png
+TXT2024-06-05 10:41:42,=
+TXT2024-06-05 10:42:05,MSLLHOOKSTRUCT
+TXT2024-06-05 10:44:15,#include
+TXT2024-06-05 10:45:16,textBrowser
+TXT2024-06-05 10:45:34,textBrowser
+DOC2024-06-05 10:48:00,C:/Users/26364/Desktop/Microsoft Edge.lnk
+TXT2024-06-05 10:49:42,QRegularExpressionMatchIterator
+TXT2024-06-05 10:51:53,
+		"background-color: rgb(109, 109, 109);"
+		"border:5px solid rgb(224
+DOC2024-06-05 10:54:46,C:/Users/Public/Desktop/向日葵远程控制.lnk,C:/Users/26364/Desktop/SpaceSniffer1.3.0.2.exe
+TXT2024-06-05 10:54:58,可以启动文本匹配功能
+TXT2024-06-05 11:01:18,contentLines
+TXT2024-06-05 11:04:13,CurrentTextColor
+TXT2024-06-05 11:04:17,TextPalette
+TXT2024-06-05 11:06:03,WH_MOUSE_LL
+TXT2024-06-05 11:10:59,getOpenFileName
+TXT2024-06-05 11:13:21,mouseY
+TXT2024-06-05 11:13:26,mouseX
+TXT2024-06-05 11:14:37,mouseInfo

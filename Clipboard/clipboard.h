@@ -52,11 +52,9 @@ public:
     Clipboard(QWidget *parent = nullptr);
     ~Clipboard();
 	void LoadSettings();
+	void LoadFontColor();
 	void startMouseHook();
-	void startKeyboardHook();
 	void stopMouseHook();
-	void stopKeyboardHook();
-	static Clipboard* staticThis;
     static int mouseX; // 鼠标X坐标
     static int mouseY; // 鼠标Y坐标
 	enum ContentType
@@ -98,6 +96,8 @@ private:
 	bool IsFixed; // 是否固定窗口位置
 	quint64 HisConCount; // 每记录一条数据就自增一次
 	int HisConOffset; // 记录离当前记录的偏移量
+	bool LeftHistoryMSGboxShown; // 防止多次触发
+	bool RightHistoryMSGboxShown; // 防止多次触发
 };
 
 /* 中文转Unicode */

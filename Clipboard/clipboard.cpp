@@ -2,12 +2,9 @@
 
 int Clipboard::mouseX = 0;
 int Clipboard::mouseY = 0;
-Clipboard* Clipboard::staticThis = nullptr;
 
 #ifdef Q_OS_WIN32
 HHOOK mouseHook = NULL;
-HHOOK keyboardHook = NULL;
-
 
 LRESULT CALLBACK MouseEvent(int nCode, WPARAM wParam, LPARAM lParam)
 {
@@ -17,39 +14,11 @@ LRESULT CALLBACK MouseEvent(int nCode, WPARAM wParam, LPARAM lParam)
 		int mouseX = mouseInfo->pt.x;
 		int mouseY = mouseInfo->pt.y;
 
-		
 		Clipboard::mouseX = mouseX;
 		Clipboard::mouseY = mouseY;
 	}
 	return CallNextHookEx(mouseHook, nCode, wParam, lParam);
 }
-
-LRESULT CALLBACK KeyEvent(int nCode, WPARAM wParam, LPARAM lParam)
-{
-	if (nCode >= 0 && wParam == WM_KEYDOWN)
-	{
-		KBDLLHOOKSTRUCT* pKeyboardStruct = (KBDLLHOOKSTRUCT*)lParam;
-		/* Ctrl + Shift + V || Ctrl + V */
-		if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && (GetAsyncKeyState(VK_SHIFT) & 0x8000) && (pKeyboardStruct->vkCode == 'V') ||
-			(GetAsyncKeyState(VK_CONTROL) & 0x8000) && (pKeyboardStruct->vkCode == 'V'))
-		{
-			Clipboard::staticThis->setVisible(false);
-		}
-		/* Ctrl + Z */
-		if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && (pKeyboardStruct->vkCode == 'Z'))
-		{
-			// 撤回 ,当点击撤回键时，显示上一次复制的内容
-
-		}
-		/* Ctrl + Y */
-		if ((GetAsyncKeyState(VK_CONTROL) & 0x8000) && (pKeyboardStruct->vkCode == 'Y'))
-		{
-			// 恢复
-		}
-	}
-	return CallNextHookEx(keyboardHook, nCode, wParam, lParam);
-}
-
 #endif // Q_OS_WIN32
 
 /* 中文转Unicode */
@@ -69,10 +38,11 @@ Clipboard::Clipboard(QWidget *parent)
 	, IsFixed(true)
 	, HisConCount(0)
 	, HisConOffset(0)
+	, LeftHistoryMSGboxShown(false)
+	, RightHistoryMSGboxShown(false)
 {
     ui->setupUi(this);
 	setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
-	staticThis = this;
 	/* 初始化配置 */
 	LoadSettings();
 
@@ -153,14 +123,15 @@ Clipboard::Clipboard(QWidget *parent)
 			cursor = doc->find(ui->SearchEdit->text(), cursor.position() + ui->SearchEdit->text().length());
 		}
 	});
-	connect(ui->SearchEdit, &QLineEdit::returnPressed, this, [&] {
-		QTextDocument *doc = ui->textBrowser->document();
-		QTextCursor cursor = doc->find(ui->SearchEdit->text(), ui->textBrowser->textCursor().position());
-		if (!cursor.isNull()) {
-			ui->textBrowser->setTextCursor(cursor);
-			ui->textBrowser->ensureCursorVisible();
-		}
-	});
+	// 搜索存有bug
+	//connect(ui->SearchEdit, &QLineEdit::returnPressed, this, [&] {
+	//	QTextDocument *doc = ui->textBrowser->document();
+	//	QTextCursor cursor = doc->find(ui->SearchEdit->text(), ui->textBrowser->textCursor().position());
+	//	if (!cursor.isNull()) {
+	//		ui->textBrowser->setTextCursor(cursor);
+	//		ui->textBrowser->ensureCursorVisible();
+	//	}
+	//});
 
 	/* 设置图片项 */ 
 	ui->ImgListWidget->setViewMode(QListWidget::IconMode);
@@ -225,8 +196,6 @@ Clipboard::Clipboard(QWidget *parent)
 Clipboard::~Clipboard()
 {
 	stopMouseHook();
-	stopKeyboardHook();
-
     delete ui;
 }
 
@@ -264,7 +233,6 @@ void Clipboard::LoadSettings()
 
 	if (!settings.contains("IsFixed")) settings.setValue("IsFixed", IsFixed);
 	IsFixed = settings.value("IsFixed").toBool();
-	startKeyboardHook();
 	IsFixed ? stopMouseHook() : startMouseHook();
 	IsFixed ? FixButton->setIcon(QIcon(":/Img/fixed.png")) : FixButton->setIcon(QIcon(":/Img/unfixed.png"));
 	IsFixed ? FixButton->setToolTip("已固定"_toUnicode) : FixButton->setToolTip("未固定"_toUnicode);
@@ -285,10 +253,6 @@ void Clipboard::LoadSettings()
 		"background-color: rgb(109, 109, 109);"
 		"border:5px solid rgb(224, 226, 224);"
 		"}";
-	// 设置字体颜色
-	QPalette TextPalette = ui->textBrowser->palette();
-	QPalette DocPalette = ui->DoclistView->palette();
-	QPalette ImgPalette = ui->ImgListWidget->palette();
 	if (!settings.contains("CurrentBackgroundImgIndex")) {
 		settings.setValue("CurrentBackgroundImgIndex", 1);
 	}
@@ -301,6 +265,9 @@ void Clipboard::LoadSettings()
 	int CurrentBackgroundImgIndex = settings.value("CurrentBackgroundImgIndex").toInt();
 	QString CurrentBackgroundImgPath = settings.value("CurrentBackgroundImgPath").toString();
 	QString CurrentTextColor = settings.value("CurrentTextColor").toString();
+	QPalette DocPalette = ui->DoclistView->palette();
+	DocPalette.setColor(QPalette::Text, CurrentTextColor);
+	ui->DoclistView->setPalette(DocPalette);
 	/* 自定义图片 */
 	if (CurrentBackgroundImgIndex == 0)
 	{
@@ -314,17 +281,11 @@ void Clipboard::LoadSettings()
 		ui->ImgListWidget->setStyleSheet(QString("QWidget#ImgListWidget{border-image:url(:/Img/bgi%1.png);}").arg(CurrentBackgroundImgIndex));
 		ui->DoclistView->setStyleSheet(QString("QWidget#DoclistView{border-image:url(:/Img/bgi%1.png);}").arg(CurrentBackgroundImgIndex));
 	}
-	TextPalette.setColor(QPalette::Text, CurrentTextColor);
-	DocPalette.setColor(QPalette::Text, CurrentTextColor);
-	ImgPalette.setColor(QPalette::Text, CurrentTextColor);
 
-	ui->DoclistView->setPalette(DocPalette);
-	ui->ImgListWidget->setPalette(ImgPalette);
 	ui->centralWidget->setStyleSheet("QWidget#centralWidget{border-image:url(:/Img/bgi1Border.png);}");
 	ui->statusBar->setStyleSheet(("QWidget#statusBar{background-image:url(:/Img/bgi1Border.png);}"));
 	ui->toolBar->setStyleSheet(("QWidget#toolBar{background-image:url(:/Img/bgi1Border.png);}"));
 	ui->textBrowser->setFont(textFont);
-	ui->textBrowser->setPalette(TextPalette);
 	ui->textBrowser->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
 
 	ui->DoclistView->setFont(textFont);
@@ -342,6 +303,21 @@ void Clipboard::LoadSettings()
 	ui->SearchEdit->setPlaceholderText("请输入需要匹配的文本，\"Ctrl + F\" 可以开启或关闭搜索栏"_toUnicode);
 }
 
+void Clipboard::LoadFontColor()
+{
+	// 加载字体颜色
+	QPalette TextPalette = ui->textBrowser->palette();
+	QPalette DocPalette = ui->DoclistView->palette();
+	QPalette ImgPalette = ui->ImgListWidget->palette();
+	QString CurrentTextColor = settings.value("CurrentTextColor").toString();
+	TextPalette.setColor(QPalette::Text, CurrentTextColor);
+	DocPalette.setColor(QPalette::Text, CurrentTextColor);
+	ImgPalette.setColor(QPalette::Text, CurrentTextColor);
+	ui->textBrowser->setPalette(TextPalette);
+	ui->DoclistView->setPalette(DocPalette);
+	ui->ImgListWidget->setPalette(ImgPalette);
+}
+
 void Clipboard::startMouseHook()
 {
 #ifdef Q_OS_WIN32
@@ -353,17 +329,6 @@ void Clipboard::startMouseHook()
 #endif // Q_OS_WIN32
 }
 
-void Clipboard::startKeyboardHook()
-{
-#ifdef Q_OS_WIN32
-	/* 开启键盘钩子 */
-	if (!keyboardHook) {
-		keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyEvent, GetModuleHandle(NULL), 0);
-		if (!keyboardHook) QMessageBox::warning(this, "error!", "Failed to install keyboard hook", QMessageBox::Ok);
-	}
-#endif // Q_OS_WIN32
-}
-
 void Clipboard::stopMouseHook()
 {
 #ifdef Q_OS_WIN32
@@ -371,17 +336,6 @@ void Clipboard::stopMouseHook()
 	if (mouseHook) {
 		UnhookWindowsHookEx(mouseHook);
 		mouseHook = NULL;
-	}
-#endif // Q_OS_WIN32
-}
-
-void Clipboard::stopKeyboardHook()
-{
-#ifdef Q_OS_WIN32
-	/* 关闭键盘钩子 */
-	if (keyboardHook) {
-		UnhookWindowsHookEx(keyboardHook);
-		keyboardHook = NULL;
 	}
 #endif // Q_OS_WIN32
 }
@@ -468,10 +422,16 @@ void Clipboard::onClipboardDataChanged()
 			ui->ImgListWidget->addItem(currentTimeItem);
 			ImgPaths.insert(0, currentDateTimeString);
 
+			QString CurrentTextColor = settings.value("CurrentTextColor").toString();
+			QPalette ImgPalette = ui->ImgListWidget->palette();
+			ImgPalette.setColor(QPalette::Text, CurrentTextColor);
+			ui->ImgListWidget->setPalette(ImgPalette);
+
 			for (const QString& imgPath : ImgPaths) {
 				QListWidgetItem *item = new QListWidgetItem(ui->ImgListWidget);
 				QPixmap pixmap(imgPath);
 				item->setIcon(QIcon(pixmap));
+				ui->ImgListWidget->addItem(item);
 				ui->ImgListWidget->addItem(item);
 			}
 			ImgPaths[0] = "IMG" + currentDateTimeString;
@@ -509,8 +469,9 @@ void Clipboard::onClipboardDataChanged()
 
 			handledText = currentDateTimeString + "\n" + mimeText;
 			ui->textBrowser->setText(handledText);
-
 		}
+		// 设置字体颜色
+		LoadFontColor();
 	}
 
 }
@@ -564,7 +525,7 @@ void Clipboard::clickMoreButton()
 			ui->DoclistView->setStyleSheet("QWidget#DoclistView{border-image:url(:/Img/bgi1.png);}");
 
 			settings.setValue("CurrentBackgroundImgIndex", 1);
-
+			LoadFontColor();
 		});
 		/* 背景2 */
 		connect(BackgroundImg2Action, &QAction::triggered, this, [&]() {
@@ -573,6 +534,7 @@ void Clipboard::clickMoreButton()
 			ui->DoclistView->setStyleSheet("QWidget#DoclistView{border-image:url(:/Img/bgi2.png);}");
 
 			settings.setValue("CurrentBackgroundImgIndex", 2);
+			LoadFontColor();
 		});
 		/* 自定义 */
 		connect(customizeAction, &QAction::triggered, this, [&]() {
@@ -587,6 +549,7 @@ void Clipboard::clickMoreButton()
 
 				settings.setValue("CurrentBackgroundImgIndex", 0);
 				settings.setValue("CurrentBackgroundImgPath", imagePath);
+				LoadFontColor();
 			}
 		});
 
@@ -598,11 +561,16 @@ void Clipboard::clickMoreButton()
 
 void Clipboard::Turn2History(qint8 direction)
 {
+	if (!isVisible()) return;
 	if (direction == LEFT)
 	{
+		if (LeftHistoryMSGboxShown) return;
+		if (RightHistoryMSGboxShown) RightHistoryMSGboxShown = false;
 		// 如果翻到第零条记录
 		if (HisConCount + HisConOffset == 1)
 		{
+
+			LeftHistoryMSGboxShown = true;
 			QMessageBox::warning(this, "翻到头了"_toUnicode, "这已经是第一条记录了!"_toUnicode, QMessageBox::Ok);
 			return;
 		}
@@ -610,9 +578,12 @@ void Clipboard::Turn2History(qint8 direction)
 	}
 	else if (direction == RIGHT)
 	{
+		if (RightHistoryMSGboxShown) return;
+		if (LeftHistoryMSGboxShown) LeftHistoryMSGboxShown = false;
 		// 如果翻到第最后一条记录 即当前位置就是最新记录
 		if (HisConOffset == 0)
 		{
+			RightHistoryMSGboxShown = true;
 			QMessageBox::warning(this, "翻到尾了"_toUnicode, "这已经是最后一条记录了!"_toUnicode, QMessageBox::Ok);
 			return;
 		}
@@ -667,6 +638,7 @@ void Clipboard::Turn2History(qint8 direction)
 	if (hisConType == "TXT")
 	{
 		ui->stackedWidget_2->setCurrentWidget(ui->TextPage);
+		handledText = contentLines;
 		ui->textBrowser->setText(contentLines);
 	}
 	else if (hisConType == "IMG")
@@ -683,6 +655,11 @@ void Clipboard::Turn2History(qint8 direction)
 			ui->ImgListWidget->addItem(item);
 		}
 		currentTimeItem->setText(contentLinesList.at(0));
+		QString CurrentTextColor = settings.value("CurrentTextColor").toString();
+		QPalette ImgPalette = ui->ImgListWidget->palette();
+		ImgPalette.setColor(QPalette::Text, CurrentTextColor);
+		ui->ImgListWidget->setPalette(ImgPalette);
+
 		ui->ImgListWidget->addItem(currentTimeItem);
 	}
 	else if (hisConType == "DOC")
@@ -695,6 +672,16 @@ void Clipboard::Turn2History(qint8 direction)
 		contentLinesList = contentLines.split(',');
 		for (const QString& docPath : contentLinesList) DocPaths.append(docPath);
 		ui->DoclistView->setModel(new QStringListModel(DocPaths, this));
+	}
+	// 文本匹配
+	QTextDocument *doc = ui->textBrowser->document();
+	QTextCursor cursor = doc->find(ui->SearchEdit->text());
+
+	while (!cursor.isNull()) {
+		QTextCharFormat format;
+		format.setBackground(Qt::darkCyan);
+		cursor.mergeCharFormat(format);
+		cursor = doc->find(ui->SearchEdit->text(), cursor.position() + ui->SearchEdit->text().length());
 	}
 
 	file.close();
@@ -756,6 +743,7 @@ void Clipboard::wheelEvent(QWheelEvent* event)
 
 void Clipboard::keyPressEvent(QKeyEvent *event)
 {
+	/* ctrl + F 文本匹配 */
 	if (event->modifiers() == Qt::ControlModifier &&
 		event->key() == Qt::Key_F &&
 		(ui->stackedWidget_2->currentWidget() == ui->TextPage))
@@ -771,5 +759,23 @@ void Clipboard::keyPressEvent(QKeyEvent *event)
 		ui->SearchEdit->setFocus();
 		return;
 	}
+	/* ctrl + Z 返回上一次记录 */
+	if (event->modifiers() == Qt::ControlModifier &&
+		event->key() == Qt::Key_Z)
+	{
+		Turn2History(LEFT);
+	}
+	/* ctrl + Y 返回下一次记录 */
+	if (event->modifiers() == Qt::ControlModifier &&
+		event->key() == Qt::Key_Y)
+	{
+		Turn2History(RIGHT);
+	}
+	/* Esc 隐藏窗口 */
+	if (event->key() == Qt::Key_Escape) 
+	{
+		setVisible(false);
+	}
 	QWidget::keyPressEvent(event);
+
 }
