@@ -490,7 +490,7 @@ void Clipboard::clickMoreButton()
 	/* 帮助 */
 	connect(HelpAction, &QAction::triggered, this, [&]() {
 		// 功能暂定
-		QMessageBox::warning(this, "提示"_toUnicode, "通过Ctrl+F可以启动文本匹配功能"_toUnicode, QMessageBox::Ok);
+		QMessageBox::warning(this, "提示"_toUnicode, "Ctrl+F ==> 文本匹配\nCtrl+Z ==> 上一条记录\nCtrl+Y ==> 下一条记录"_toUnicode, QMessageBox::Ok);
 	});
 
 	/* 更改文本颜色 */
