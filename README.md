@@ -18,3 +18,10 @@
 ### 打开文件
    ![打开文件](https://github.com/capp-adocia/Memory-Link-Board/blob/master/Clipboard/Img/openDoc.png)
 
+## 联系我
+
+> 如果遇到了任何问题，随时可以找我。
+
+-  QQ: 请通过 2636427505 联系我。
+-  QQ email: 请发送邮件至 [2636427505@qq.com](https://mail.qq.com/) 联系我。
+-  ......
