@@ -776,6 +776,6 @@ void Clipboard::keyPressEvent(QKeyEvent *event)
 	{
 		setVisible(false);
 	}
-	QWidget::keyPressEvent(event);
 
+	QWidget::keyPressEvent(event);
 }
