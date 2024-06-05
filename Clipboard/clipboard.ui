@@ -21,6 +21,10 @@
   <property name="windowTitle">
    <string>Clipboard</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="clipboard.qrc">
+    <normaloff>:/icon.ico</normaloff>:/icon.ico</iconset>
+  </property>
   <property name="windowOpacity">
    <double>1.000000000000000</double>
   </property>

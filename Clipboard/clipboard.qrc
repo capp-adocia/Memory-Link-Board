@@ -3,8 +3,8 @@
         <file>Img/bgi1.png</file>
         <file>Img/bgi1Border.png</file>
         <file>Img/bgi2.png</file>
-        <file>Img/health.png</file>
         <file>Img/fixed.png</file>
         <file>Img/unfixed.png</file>
+        <file>icon.ico</file>
     </qresource>
 </RCC>

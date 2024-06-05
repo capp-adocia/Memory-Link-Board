@@ -1,6 +1,5 @@
 ﻿#include "clipboard.h"
 
-
 #ifdef Q_OS_WIN32
 int Clipboard::mouseX = 0;
 int Clipboard::mouseY = 0;
@@ -43,13 +42,14 @@ Clipboard::Clipboard(QWidget *parent)
 {
 	ui->setupUi(this);
 	setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+	setWindowTitle("Memory Link Board");
 	/* 初始化配置 */
 	LoadSettings();
 
 #ifdef Q_OS_WIN32
 
 	/* 创建系统托盘菜单（仅WIN32） */
-	QSystemTrayIcon *trayIcon = new QSystemTrayIcon(QIcon(":/Img/health.png"), this);
+	QSystemTrayIcon *trayIcon = new QSystemTrayIcon(QIcon(":/icon.ico"), this);
 	QMenu *trayMenu = new QMenu(this);
 	QAction *exitAction = new QAction("Exit", this);
 	trayMenu->addSeparator();
