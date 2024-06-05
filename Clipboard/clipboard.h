@@ -1,12 +1,8 @@
 ﻿#pragma once
 
 #include <qglobal.h>
-#ifdef Q_OS_LINUX
-	
-#elif defined(Q_OS_WIN32)
+#ifdef Q_OS_WIN32
 	#include <windows.h>
-#else
-	#error "Unsupported platform"
 #endif
 
 #include <QtWidgets/QMainWindow>
@@ -55,8 +51,10 @@ public:
 	void LoadFontColor();
 	void startMouseHook();
 	void stopMouseHook();
+#ifdef Q_OS_WIN32
     static int mouseX; // 鼠标X坐标
     static int mouseY; // 鼠标Y坐标
+#endif // Q_OS_WIN32
 	enum ContentType
 	{
 		TXT, // 文本

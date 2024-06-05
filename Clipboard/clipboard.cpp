@@ -1,9 +1,9 @@
 ﻿#include "clipboard.h"
 
-int Clipboard::mouseX = 0;
-int Clipboard::mouseY = 0;
 
 #ifdef Q_OS_WIN32
+int Clipboard::mouseX = 0;
+int Clipboard::mouseY = 0;
 HHOOK mouseHook = NULL;
 
 LRESULT CALLBACK MouseEvent(int nCode, WPARAM wParam, LPARAM lParam)
@@ -25,9 +25,9 @@ LRESULT CALLBACK MouseEvent(int nCode, WPARAM wParam, LPARAM lParam)
 QString operator""_toUnicode(const char* CN_Str, size_t len) { return QString::fromLocal8Bit(CN_Str); }
 
 Clipboard::Clipboard(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::ClipboardClass())
-	, lastPos(0,0)
+	: QMainWindow(parent)
+	, ui(new Ui::ClipboardClass())
+	, lastPos(0, 0)
 	, settings("config.ini", QSettings::IniFormat)
 	, ESCButton(new QPushButton(ui->toolBar))
 	, HideButton(new QPushButton(ui->toolBar))
@@ -41,7 +41,7 @@ Clipboard::Clipboard(QWidget *parent)
 	, LeftHistoryMSGboxShown(false)
 	, RightHistoryMSGboxShown(false)
 {
-    ui->setupUi(this);
+	ui->setupUi(this);
 	setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
 	/* 初始化配置 */
 	LoadSettings();
@@ -49,7 +49,7 @@ Clipboard::Clipboard(QWidget *parent)
 #ifdef Q_OS_WIN32
 
 	/* 创建系统托盘菜单（仅WIN32） */
-	QSystemTrayIcon *trayIcon = new QSystemTrayIcon(QIcon(":/Img/health.png"),this);
+	QSystemTrayIcon *trayIcon = new QSystemTrayIcon(QIcon(":/Img/health.png"), this);
 	QMenu *trayMenu = new QMenu(this);
 	QAction *exitAction = new QAction("Exit", this);
 	trayMenu->addSeparator();
@@ -58,7 +58,7 @@ Clipboard::Clipboard(QWidget *parent)
 	trayIcon->setContextMenu(trayMenu);
 	trayIcon->show();
 
-	connect(trayIcon, &QSystemTrayIcon::activated, this, [=](QSystemTrayIcon::ActivationReason reason){
+	connect(trayIcon, &QSystemTrayIcon::activated, this, [=](QSystemTrayIcon::ActivationReason reason) {
 		//单击托盘图标
 		if (reason == QSystemTrayIcon::Trigger) isVisible() ? hide() : show();
 	});
@@ -71,7 +71,7 @@ Clipboard::Clipboard(QWidget *parent)
 	/* 获取设备屏幕的宽高 */
 	screenWidth = QGuiApplication::primaryScreen()->geometry().width();
 	screenHeight = QGuiApplication::primaryScreen()->geometry().height();
-	
+
 	/* 剪切板 */
 	clipboard = QApplication::clipboard();
 
@@ -80,7 +80,7 @@ Clipboard::Clipboard(QWidget *parent)
 	QTimer::singleShot(0, this, [&] {
 		setVisible(false);
 	});
-	
+
 	connect(clipboard, &QClipboard::dataChanged, this, &Clipboard::onClipboardDataChanged);
 
 	connect(ESCButton, &QPushButton::clicked, this, [&] {
@@ -101,6 +101,7 @@ Clipboard::Clipboard(QWidget *parent)
 	connect(NextButton, &QPushButton::clicked, [&] {
 		Turn2History(RIGHT);
 	});
+#ifdef Q_OS_WIN32
 	/* 点击固定按钮 */
 	connect(FixButton, &QPushButton::clicked, this, [&] {
 		IsFixed = !IsFixed;
@@ -109,6 +110,7 @@ Clipboard::Clipboard(QWidget *parent)
 		IsFixed ? FixButton->setToolTip("已固定"_toUnicode) : FixButton->setToolTip("未固定"_toUnicode);
 		settings.setValue("IsFixed", IsFixed);
 	});
+#endif // Q_OS_WIN32
 	/* 文本匹配 */
 	connect(ui->SearchEdit, &QLineEdit::textChanged, this, [&] {
 		// 清空之前样式
@@ -133,7 +135,7 @@ Clipboard::Clipboard(QWidget *parent)
 	//	}
 	//});
 
-	/* 设置图片项 */ 
+	/* 设置图片项 */
 	ui->ImgListWidget->setViewMode(QListWidget::IconMode);
 	ui->ImgListWidget->setIconSize(QSize(300, 300));
 
@@ -186,7 +188,7 @@ Clipboard::Clipboard(QWidget *parent)
 			connect(startAction, &QAction::triggered, this, [&]() {
 				QDesktopServices::openUrl(QUrl::fromLocalFile(itemPath));
 			});
-			
+
 			menu.exec(ui->DoclistView->mapToGlobal(pos));
 		}
 	});
@@ -196,7 +198,7 @@ Clipboard::Clipboard(QWidget *parent)
 Clipboard::~Clipboard()
 {
 	stopMouseHook();
-    delete ui;
+	delete ui;
 }
 
 void Clipboard::LoadSettings()
@@ -213,7 +215,7 @@ void Clipboard::LoadSettings()
 
 	ui->statusBar->setFixedHeight(12);
 	ui->toolBar->setFont(textFont);
-	
+
 	ESCButton->setFixedSize(BUTTONSIZE);
 	ESCButton->setToolTip("退出"_toUnicode);
 	ESCButton->setText("X");
@@ -237,7 +239,7 @@ void Clipboard::LoadSettings()
 	IsFixed ? FixButton->setIcon(QIcon(":/Img/fixed.png")) : FixButton->setIcon(QIcon(":/Img/unfixed.png"));
 	IsFixed ? FixButton->setToolTip("已固定"_toUnicode) : FixButton->setToolTip("未固定"_toUnicode);
 
-	if(settings.contains("historyContentCount")) HisConCount = settings.value("historyContentCount").toULongLong();
+	if (settings.contains("historyContentCount")) HisConCount = settings.value("historyContentCount").toULongLong();
 
 	/* 初始化样式 */
 	QString buttonStyleSheet = "QPushButton{"
@@ -348,28 +350,29 @@ void Clipboard::onClipboardDataChanged()
 		QDateTime currentDateTime = QDateTime::currentDateTime();
 		QString currentDateTimeString = currentDateTime.toString("yyyy-MM-dd hh:mm:ss");
 		show();
-		
+#ifdef Q_OS_WIN32
 		int GapX = Clipboard::mouseX - static_cast<int>(screenWidth / 2); // 计算鼠标和屏幕中心点之间差距
 		int GapY = Clipboard::mouseY - static_cast<int>(screenHeight / 2);
-		
+
 		int newPointX = static_cast<int>(screenWidth / 2) - GapX;
 		int newPointY = static_cast<int>(screenHeight / 2) - GapY;
 		if (!IsFixed)
 		{
 			// 当新坐标超出屏幕的左上角
-			if (newPointX + width() > screenWidth && newPointY + height() > screenHeight) move(screenWidth - width(), screenHeight - height()); 
+			if (newPointX + width() > screenWidth && newPointY + height() > screenHeight) move(screenWidth - width(), screenHeight - height());
 			// 当新坐标超出屏幕的右上角
 			else if (newPointX < 0 && newPointY < 0) move(0, 0);
 			// 当新坐标超出屏幕左侧
 			else if (newPointX < 0) move(0, newPointY);
 			// 当新坐标超出屏幕右侧
-			else if (newPointX + width() > screenWidth) move(screenWidth - width(), newPointY); 
+			else if (newPointX + width() > screenWidth) move(screenWidth - width(), newPointY);
 			// 当新坐标超出屏幕上侧
-			else if (newPointY < 0) move(newPointX, 0); 
+			else if (newPointY < 0) move(newPointX, 0);
 			// 当新坐标超出屏幕下侧
 			else if (newPointY + height() > screenHeight) move(newPointX, screenHeight - height());
 			else move(newPointX, newPointY);
 		}
+#endif // Q_OS_WIN32
 		/* 重置记录偏移量 */
 		HisConOffset = 0;
 		settings.setValue("historyContentCount", ++HisConCount);
@@ -378,7 +381,7 @@ void Clipboard::onClipboardDataChanged()
 			// 如果后缀不是图片类型的那么就以文件列表的形式展示出来
 
 			QStringList paths = mimeData->text().split("\n", Qt::SkipEmptyParts);
-			
+
 			ImgPaths.clear();
 			if (ui->ImgListWidget->count() > 0) qDeleteAll(ui->ImgListWidget->findItems(QString(), Qt::MatchContains));
 
@@ -655,10 +658,6 @@ void Clipboard::Turn2History(qint8 direction)
 			ui->ImgListWidget->addItem(item);
 		}
 		currentTimeItem->setText(contentLinesList.at(0));
-		QString CurrentTextColor = settings.value("CurrentTextColor").toString();
-		QPalette ImgPalette = ui->ImgListWidget->palette();
-		ImgPalette.setColor(QPalette::Text, CurrentTextColor);
-		ui->ImgListWidget->setPalette(ImgPalette);
 
 		ui->ImgListWidget->addItem(currentTimeItem);
 	}
@@ -673,6 +672,7 @@ void Clipboard::Turn2History(qint8 direction)
 		for (const QString& docPath : contentLinesList) DocPaths.append(docPath);
 		ui->DoclistView->setModel(new QStringListModel(DocPaths, this));
 	}
+	LoadFontColor();
 	// 文本匹配
 	QTextDocument *doc = ui->textBrowser->document();
 	QTextCursor cursor = doc->find(ui->SearchEdit->text());
@@ -711,7 +711,7 @@ void Clipboard::SaveHistory(ContentType contentType, const QStringList& contents
 		out << "\n";
 	}
 	else QMessageBox::warning(this, "error!", "不能保存历史记录，请检查文件!"_toUnicode, QMessageBox::Ok);
-	
+
 	file.close();
 }
 
@@ -730,12 +730,12 @@ void Clipboard::mouseMoveEvent(QMouseEvent *event)
 	}
 }
 
-/* 获取滚轮滚动值 */ 
+/* 获取滚轮滚动值 */
 void Clipboard::wheelEvent(QWheelEvent* event)
 {
 	int delta = event->angleDelta().y();
 	// 调节图片项的大小
-	if (delta > 0) ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() + QSize(20,20));
+	if (delta > 0) ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() + QSize(20, 20));
 	else ui->ImgListWidget->setIconSize(ui->ImgListWidget->iconSize() - QSize(20, 20));
 
 	event->accept();
@@ -772,7 +772,7 @@ void Clipboard::keyPressEvent(QKeyEvent *event)
 		Turn2History(RIGHT);
 	}
 	/* Esc 隐藏窗口 */
-	if (event->key() == Qt::Key_Escape) 
+	if (event->key() == Qt::Key_Escape)
 	{
 		setVisible(false);
 	}
